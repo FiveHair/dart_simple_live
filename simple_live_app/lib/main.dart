@@ -12,9 +12,12 @@ import 'package:logger/logger.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:simple_live_app/app/app_platform.dart';
+import 'package:simple_live_app/app/ohos_native.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/log.dart';
+import 'package:simple_live_app/app/app_window.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/listen_fourth_button.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
@@ -31,18 +34,21 @@ import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
 import 'package:simple_live_core/simple_live_core.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'package:path/path.dart' as p;
 import 'package:dynamic_color/dynamic_color.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 初始化平台判定（识别鸿蒙 PC 等设备形态）
+  await AppPlatform.init();
+  // 鸿蒙原生通道（播控中心命令等）
+  OhosNative.init();
   await migrateData();
   await initWindow();
   MediaKit.ensureInitialized();
   await Hive.initFlutter(
-    (!Platform.isAndroid && !Platform.isIOS)
+    AppPlatform.isDesktopForm
         ? (await getApplicationSupportDirectory()).path
         : null,
   );
@@ -61,7 +67,7 @@ void main() async {
 
 /// 将Hive数据迁移到Application Support
 Future migrateData() async {
-  if (Platform.isAndroid || Platform.isIOS) {
+  if (!AppPlatform.isDesktopForm) {
     return;
   }
   var hiveFileList = [
@@ -101,19 +107,19 @@ Future migrateData() async {
 }
 
 Future initWindow() async {
-  if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+  if (!AppPlatform.supportWindowManager) {
     return;
   }
-  await windowManager.ensureInitialized();
-  WindowOptions windowOptions = const WindowOptions(
-    minimumSize: Size(280, 280),
+  await AppWindow.ensureInitialized();
+  await AppWindow.waitUntilReadyToShow(
+    minimumSize: const Size(280, 280),
     center: true,
     title: "Simple Live",
+    callback: () async {
+      await AppWindow.show();
+      await AppWindow.focus();
+    },
   );
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
 }
 
 Future initServices() async {
@@ -231,9 +237,9 @@ class MyApp extends StatelessWidget {
                       (FourthButtonTapGestureRecognizer instance) {
                         instance.onTapDown = (TapDownDetails details) async {
                           //如果处于全屏状态，退出全屏
-                          if (!Platform.isAndroid && !Platform.isIOS) {
-                            if (await windowManager.isFullScreen()) {
-                              await windowManager.setFullScreen(false);
+                          if (AppPlatform.isDesktopForm) {
+                            if (await AppWindow.isFullScreen()) {
+                              await AppWindow.setFullScreen(false);
                               return;
                             }
                           }
@@ -249,9 +255,9 @@ class MyApp extends StatelessWidget {
                           event.logicalKey == LogicalKeyboardKey.escape) {
                         // ESC退出全屏
                         // 如果处于全屏状态，退出全屏
-                        if (!Platform.isAndroid && !Platform.isIOS) {
-                          if (await windowManager.isFullScreen()) {
-                            await windowManager.setFullScreen(false);
+                        if (AppPlatform.isDesktopForm) {
+                          if (await AppWindow.isFullScreen()) {
+                            await AppWindow.setFullScreen(false);
                             return;
                           }
                         }

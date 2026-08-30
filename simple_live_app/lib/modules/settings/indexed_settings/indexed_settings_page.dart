@@ -30,7 +30,10 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
               () => ReorderableListView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                onReorderItem: controller.updateHomeSort,
+                onReorder: (oldIndex, newIndex) {
+                  controller.updateHomeSort(
+                      oldIndex, newIndex > oldIndex ? newIndex - 1 : newIndex);
+                },
                 children: controller.homeSort.map(
                   (key) {
                     var e = Constant.allHomePages[key]!;
@@ -58,7 +61,10 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
               () => ReorderableListView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                onReorderItem: controller.updateSiteSort,
+                onReorder: (oldIndex, newIndex) {
+                  controller.updateSiteSort(
+                      oldIndex, newIndex > oldIndex ? newIndex - 1 : newIndex);
+                },
                 children: controller.siteSort.map(
                   (key) {
                     var e = Sites.allSites[key]!;

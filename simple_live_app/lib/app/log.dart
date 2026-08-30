@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/utils.dart';
 
 class Log {
@@ -149,6 +150,8 @@ class LogFileWriter {
       write((await deviceInfo.macOsInfo).data.toString());
     } else if (Platform.isWindows) {
       write((await deviceInfo.windowsInfo).data.toString());
+    } else if (AppPlatform.isOhos) {
+      write((await deviceInfo.ohosDeviceInfo).data.toString());
     }
     write("End System Info");
   }

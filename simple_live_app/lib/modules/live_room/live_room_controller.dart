@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
@@ -18,6 +19,7 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/history.dart';
+import 'package:simple_live_app/app/ohos_native.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controller.dart';
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
 import 'package:simple_live_app/services/db_service.dart';
@@ -116,6 +118,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     initAutoExit();
     showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
     followed.value = DBService.instance.getFollowExist("${site.id}_$roomId");
+    initOhosAVSession();
     loadData();
 
     scrollController.addListener(scrollListener);
@@ -855,7 +858,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
                 },
               ),
             ),
-            if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
+            if (AppPlatform.isDesktopForm)
               Positioned(
                 right: 12,
                 bottom: 12,
@@ -1051,8 +1054,46 @@ ${error?.stackTrace}''');
     }
   }
 
+  /// 鸿蒙播控中心（AVSession）接线
+  StreamSubscription<bool>? _avPlayingSub;
+
+  void _handleAVSessionCommand(String command) {
+    try {
+      if (command == "play") {
+        player.play();
+      } else {
+        // pause / stop：直播不支持 seek/下一曲，统一暂停
+        player.pause();
+      }
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
+
+  void initOhosAVSession() {
+    if (!AppPlatform.isOhos) {
+      return;
+    }
+    OhosNative.avSessionCreate();
+    OhosNative.onAVSessionCommand = _handleAVSessionCommand;
+    _avPlayingSub = player.stream.playing.listen((playing) {
+      OhosNative.avSessionUpdate(
+        title: detail.value?.title ?? "正在直播",
+        artist: detail.value?.userName ?? site.id,
+        isPlaying: playing,
+      );
+    });
+  }
+
   @override
   void onClose() {
+    _avPlayingSub?.cancel();
+    if (AppPlatform.isOhos) {
+      if (OhosNative.onAVSessionCommand == _handleAVSessionCommand) {
+        OhosNative.onAVSessionCommand = null;
+      }
+      OhosNative.avSessionDestroy();
+    }
     WidgetsBinding.instance.removeObserver(this);
     scrollController.removeListener(scrollListener);
     autoExitTimer?.cancel();

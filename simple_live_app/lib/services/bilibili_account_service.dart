@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/account/bilibili_user_info_page.dart';
@@ -76,7 +75,7 @@ class BiliBiliAccountService extends GetxService {
         .setValue(LocalStorageService.kBilibiliCookie, "");
     logined.value = false;
 
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (AppPlatform.isMobileForm) {
       CookieManager cookieManager = CookieManager.instance();
       await cookieManager.deleteAllCookies();
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/routes/route_path.dart';
@@ -17,7 +18,7 @@ class SyncPage extends StatelessWidget {
         title: const Text("数据同步"),
         actions: [
           Visibility(
-            visible: GetPlatform.isAndroid || GetPlatform.isIOS,
+            visible: AppPlatform.isMobileForm,
             child: TextButton.icon(
               onPressed: () async {
                 var result = await Get.toNamed(RoutePath.kSyncScan);

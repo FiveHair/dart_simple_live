@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
@@ -121,27 +122,29 @@ class AppSettingsController extends GetxController {
 
     videoOutputDriver.value = LocalStorageService.instance.getValue(
       LocalStorageService.kVideoOutputDriver,
-      Platform.isAndroid ? "gpu" : "libmpv",
+      (Platform.isAndroid || AppPlatform.isOhos) ? "gpu" : "libmpv",
     );
 
     audioOutputDriver.value = LocalStorageService.instance.getValue(
       LocalStorageService.kAudioOutputDriver,
       Platform.isAndroid
           ? "audiotrack"
-          : Platform.isLinux
-              ? "pulse"
-              : Platform.isWindows
-                  ? "wasapi"
-                  : Platform.isIOS
-                      ? "audiounit"
-                      : Platform.isMacOS
-                          ? "coreaudio"
-                          : "sdl",
+          : AppPlatform.isOhos
+              ? "auto"
+              : Platform.isLinux
+                  ? "pulse"
+                  : Platform.isWindows
+                      ? "wasapi"
+                      : Platform.isIOS
+                          ? "audiounit"
+                          : Platform.isMacOS
+                              ? "coreaudio"
+                              : "sdl",
     );
 
     videoHardwareDecoder.value = LocalStorageService.instance.getValue(
       LocalStorageService.kVideoHardwareDecoder,
-      Platform.isAndroid ? "auto-safe" : "auto",
+      (Platform.isAndroid || AppPlatform.isOhos) ? "auto-safe" : "auto",
     );
 
     autoUpdateFollowEnable.value = LocalStorageService.instance
@@ -151,7 +154,7 @@ class AppSettingsController extends GetxController {
         .getValue(LocalStorageService.kUpdateFollowDuration, 10);
 
     updateFollowThreadCount.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kUpdateFollowThreadCount, 0);  // 默认 0 = 自动
+        .getValue(LocalStorageService.kUpdateFollowThreadCount, 0); // 默认 0 = 自动
 
     initSiteSort();
     initHomeSort();

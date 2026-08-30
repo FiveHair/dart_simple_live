@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/bilibili_account_service.dart';
@@ -29,7 +28,7 @@ class AccountController extends GetxController {
         mainAxisSize: MainAxisSize.min,
         children: [
           Visibility(
-            visible: Platform.isAndroid || Platform.isIOS,
+            visible: AppPlatform.isMobileForm,
             child: ListTile(
               leading: const Icon(Icons.account_circle_outlined),
               title: const Text("Web登录"),
@@ -81,7 +80,8 @@ class AccountController extends GetxController {
 
   void douyinTap() async {
     if (DouyinAccountService.instance.hasCookie.value) {
-      var result = await Utils.showAlertDialog("确定要清除自定义 ttwid 吗？", title: "清除配置");
+      var result =
+          await Utils.showAlertDialog("确定要清除自定义 ttwid 吗？", title: "清除配置");
       if (result) {
         DouyinAccountService.instance.clearCookie();
         SmartDialog.showToast("已清除自定义 ttwid，将使用默认 ttwid");

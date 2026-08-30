@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker_ohos/file_picker_ohos.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/app_platform.dart';
+import 'package:simple_live_app/app/ohos_native.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:path/path.dart' as p;
@@ -140,6 +142,18 @@ class OtherSettingsController extends BaseController {
   }
 
   void saveLogFile(LogFileModel item) async {
+    //鸿蒙：file_picker_ohos 的 saveFile 无法预填文件名，走原生保存对话框
+    if (AppPlatform.isOhos) {
+      var bytes = await File(item.path).readAsBytes();
+      var path = await OhosNative.saveFile(
+        fileName: item.name,
+        bytes: bytes,
+      );
+      if (path != null) {
+        SmartDialog.showToast("保存成功");
+      }
+      return;
+    }
     var filePath = await FilePicker.platform.saveFile(
       allowedExtensions: ['log'],
       type: FileType.custom,
@@ -167,8 +181,22 @@ class OtherSettingsController extends BaseController {
 
       var bytes = Uint8List.fromList(utf8.encode(jsonEncode(data)));
 
+      //鸿蒙：走原生保存对话框直接写入
+      if (AppPlatform.isOhos) {
+        var path = await OhosNative.saveFile(
+          fileName: "simple_live_config.json",
+          bytes: bytes,
+        );
+        if (path == null) {
+          SmartDialog.showToast("保存取消");
+        } else {
+          SmartDialog.showToast("保存成功");
+        }
+        return;
+      }
+
       // FilePicker 直接写入
-      var inlineSave = Platform.isAndroid || Platform.isIOS || kIsWeb;
+      var inlineSave = AppPlatform.isMobileForm || kIsWeb;
 
       var path = await FilePicker.platform.saveFile(
         allowedExtensions: ['json'],

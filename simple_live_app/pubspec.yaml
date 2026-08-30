@@ -54,8 +54,17 @@ dependencies:
   screen_brightness: ^2.1.7 #亮度控制
   auto_orientation_v2: ^2.4.6 #屏幕方向
   wakelock_plus: ^1.4.0 #屏幕常亮
-  file_picker: ^10.3.7 #文件选择
+  # file_picker 的全平台版本（上游 10.3.8 + 鸿蒙适配），ohos 以外平台行为与 file_picker 一致
+  file_picker_ohos:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_file_picker.git
+      ref: br_v10.3.8_ohos
   window_manager: ^0.5.1 #窗口管理
+  # 鸿蒙 PC 窗口管理（window_manager 无鸿蒙实现，仅鸿蒙平台生效）
+  window_manager_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_window_manager_plus.git
+      ref: master
   floating: ^6.0.0 #PIP画中画
   flutter_inappwebview: ^6.1.5 #WebView
   connectivity_plus: ^7.0.0 #网络状态
@@ -86,6 +95,116 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
+
+# 鸿蒙（OHOS）平台适配依赖覆盖
+#
+# 以下覆盖均为"上游官方代码 + ohos 平台扩展"的适配版（来自 CPF-Flutter / OpenHarmony SIG），
+# 其他平台（Android/iOS/Windows/macOS/Linux）使用的仍是对应上游版本的实现，行为不变。
+# 版本选择与各适配仓库的 TAG 版本对应表一致（面向 Flutter oh-3.41.9）。
+dependency_overrides:
+  # 视频播放（media_kit 1.2.6 / media_kit_video 2.0.1 / libs 1.0.8）
+  media_kit:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_flutter_media_kit.git
+      path: media_kit
+      ref: 1.2.6-ohos-1.0.0
+  media_kit_video:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_flutter_media_kit.git
+      path: media_kit_video
+      ref: 1.2.6-ohos-1.0.0
+  media_kit_libs_video:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_flutter_media_kit.git
+      path: libs/universal/media_kit_libs_video
+      ref: 1.2.6-ohos-1.0.0
+  media_kit_libs_windows_video:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_flutter_media_kit.git
+      path: libs/windows/media_kit_libs_windows_video
+      ref: 1.2.6-ohos-1.0.0
+
+  # flutter/packages 系列（版本与主依赖约束一致）
+  path_provider:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: br_path_provider-v2.1.5_ohos
+  path_provider_ohos:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/path_provider/path_provider_ohos
+      ref: br_path_provider-v2.1.5_ohos
+  url_launcher:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/url_launcher/url_launcher
+      ref: br_url_launcher-v6.3.2_ohos
+  url_launcher_ohos:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/url_launcher/url_launcher_ohos
+      ref: br_url_launcher-v6.3.2_ohos
+
+  # plus_plugins 系列（版本与主依赖约束一致，ohos 为内联实现）
+  device_info_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git
+      path: packages/device_info_plus/device_info_plus
+      ref: br_device_info_plus-v12.3.0_ohos
+  package_info_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git
+      path: packages/package_info_plus/package_info_plus
+      ref: br_package_info_plus-v9.0.0_ohos
+  connectivity_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git
+      path: packages/connectivity_plus/connectivity_plus
+      ref: br_connectivity_plus-v7.0.0_ohos
+  network_info_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git
+      path: packages/network_info_plus/network_info_plus
+      ref: br_network_info_plus_v7.0.0_ohos
+  share_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git
+      path: packages/share_plus/share_plus
+      ref: br_share_plus-v12.0.1_ohos
+
+  # 其他三方库
+  # dart_quickjs（simple_live_core 的传递依赖）：使用仓库内副本，
+  # 其 native 构建钩子增加了鸿蒙 OHOS clang 的 sysroot/target 支持
+  dart_quickjs:
+    path: ../third_party/dart_quickjs
+  permission_handler:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_permission_handler.git
+      path: permission_handler
+      ref: br_v12.0.1_ohos
+  wakelock_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_wakelock_plus.git
+      path: wakelock_plus
+      ref: br_v1.4.0_ohos
+  volume_controller:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_volume_controller.git
+      ref: master
+  image_gallery_saver_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_image_gallery_saver_plus.git
+      ref: master
+  qr_code_scanner_plus:
+    git:
+      url: https://gitcode.com/CPF-Flutter/fluttertpc_qr_code_scanner_plus.git
+      ref: master
+  flutter_inappwebview:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_inappwebview.git
+      path: flutter_inappwebview
+      ref: br_v6.1.5_ohos
 
 flutter_launcher_icons:
   android: true

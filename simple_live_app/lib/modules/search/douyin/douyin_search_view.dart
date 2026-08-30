@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/modules/search/douyin/douyin_search_controller.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
@@ -48,7 +47,7 @@ class DouyinSearchView extends StatelessWidget {
               ),
             ),
           ),
-          if (Platform.isAndroid || Platform.isIOS)
+          if (AppPlatform.isMobileForm)
             InAppWebView(
               onWebViewCreated: controller.onWebViewCreated,
               onLoadStop: controller.onLoadStop,

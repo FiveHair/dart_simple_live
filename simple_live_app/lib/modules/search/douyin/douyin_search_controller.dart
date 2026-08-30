@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
@@ -35,7 +34,7 @@ class DouyinSearchController extends BaseController {
     }
     searchUrl =
         "https://www.douyin.com/search/${Uri.encodeComponent(keyword)}?type=live";
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (AppPlatform.isMobileForm) {
       webViewController!.loadUrl(
         urlRequest: URLRequest(
           url: WebUri(searchUrl),

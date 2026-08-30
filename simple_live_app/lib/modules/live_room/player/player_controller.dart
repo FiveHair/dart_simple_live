@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:auto_orientation_v2/auto_orientation_v2.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker_ohos/file_picker_ohos.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +15,9 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/app_platform.dart';
+import 'package:simple_live_app/app/app_window.dart';
+import 'package:simple_live_app/app/ohos_native.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/custom_throttle.dart';
 import 'package:simple_live_app/app/log.dart';
@@ -49,7 +52,7 @@ mixin PlayerMixin {
       }
     }
     // media_kit 仓库更新导致的问题，临时解决办法
-    if(Platform.isAndroid){
+    if (Platform.isAndroid) {
       await pp.setProperty('force-seekable', 'yes');
     }
   }
@@ -233,7 +236,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   /// 初始化一些系统状态
   void initSystem() async {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (AppPlatform.isMobileForm) {
       VolumeController.instance.showSystemUI = false;
     }
 
@@ -250,16 +253,35 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 
   /// 释放一些系统状态
+  ///
+  /// 各平台能力差异可能导致单项调用抛出异常，这里逐项容错，
+  /// 避免中断 onClose 中后续的播放器释放
   Future resetSystem() async {
     _pipSubscription?.cancel();
     //pip.dispose();
-    await SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.edgeToEdge,
-      overlays: SystemUiOverlay.values,
-    );
+    if (AppPlatform.isOhos) {
+      //鸿蒙：通过原生通道恢复系统栏与方向（若全屏中退出页面也能正确还原）
+      await OhosNative.exitFullScreen();
+    } else {
+      try {
+        await SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.edgeToEdge,
+          overlays: SystemUiOverlay.values,
+        );
+      } catch (e) {
+        Log.logPrint(e);
+      }
 
-    await setPortraitOrientation();
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
+      try {
+        await setPortraitOrientation();
+      } catch (e) {
+        Log.logPrint(e);
+      }
+    }
+    if (Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isMacOS ||
+        AppPlatform.isOhos) {
       // 亮度重置,桌面平台可能会报错,暂时不处理桌面平台的亮度
       try {
         await ScreenBrightness.instance.resetApplicationScreenBrightness();
@@ -268,13 +290,20 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       }
     }
 
-    await WakelockPlus.disable();
+    try {
+      await WakelockPlus.disable();
+    } catch (e) {
+      Log.logPrint(e);
+    }
   }
 
   /// 进入全屏
   void enterFullScreen() {
     fullScreenState.value = true;
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (AppPlatform.isOhos && AppPlatform.isMobileForm) {
+      //鸿蒙手机/平板：原生全屏（隐藏状态栏与导航小白条、横屏、智慧多窗）
+      OhosNative.enterFullScreen(lockLandscape: !isVertical.value);
+    } else if (AppPlatform.isMobileForm) {
       //全屏
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
       if (!isVertical.value) {
@@ -282,19 +311,21 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         setLandscapeOrientation();
       }
     } else {
-      windowManager.setFullScreen(true);
+      AppWindow.setFullScreen(true);
     }
     //danmakuController?.clear();
   }
 
   /// 退出全屏
   void exitFull() {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (AppPlatform.isOhos && AppPlatform.isMobileForm) {
+      OhosNative.exitFullScreen();
+    } else if (AppPlatform.isMobileForm) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge,
           overlays: SystemUiOverlay.values);
       setPortraitOrientation();
     } else {
-      windowManager.setFullScreen(false);
+      AppWindow.setFullScreen(false);
     }
     fullScreenState.value = false;
 
@@ -306,15 +337,15 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   ///小窗模式()
   void enterSmallWindow() async {
-    if (!(Platform.isAndroid || Platform.isIOS)) {
+    if (AppPlatform.isDesktopForm) {
       fullScreenState.value = true;
       smallWindowState.value = true;
 
       // 读取窗口大小
-      _lastWindowSize = await windowManager.getSize();
-      _lastWindowPosition = await windowManager.getPosition();
+      _lastWindowSize = await AppWindow.getSize();
+      _lastWindowPosition = await AppWindow.getPosition();
 
-      windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      AppWindow.setTitleBarStyle(TitleBarStyle.hidden);
       // 获取视频窗口大小
       var width = player.state.width ?? 16;
       var height = player.state.height ?? 9;
@@ -322,26 +353,36 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       // 横屏还是竖屏
       if (height > width) {
         var aspectRatio = width / height;
-        windowManager.setSize(Size(400, 400 / aspectRatio));
+        AppWindow.setSize(Size(400, 400 / aspectRatio));
       } else {
         var aspectRatio = height / width;
-        windowManager.setSize(Size(280 / aspectRatio, 280));
+        AppWindow.setSize(Size(280 / aspectRatio, 280));
       }
 
-      windowManager.setAlwaysOnTop(true);
+      AppWindow.setAlwaysOnTop(true);
+    }
+  }
+
+  ///小窗模式下进入全屏()
+  ///小窗复用全屏的fullScreenState，双击进入全屏前需要先还原标准窗口属性，
+  ///这样退出全屏时才能恢复到标准的窗口化（标题栏、大小、位置）
+  void enterFullScreenFromSmallWindow() {
+    if (AppPlatform.isDesktopForm) {
+      exitSmallWindow();
+      enterFullScreen();
     }
   }
 
   ///退出小窗模式()
   void exitSmallWindow() {
-    if (!(Platform.isAndroid || Platform.isIOS)) {
+    if (AppPlatform.isDesktopForm) {
       fullScreenState.value = false;
       smallWindowState.value = false;
-      windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      windowManager.setSize(_lastWindowSize!);
-      windowManager.setPosition(_lastWindowPosition!);
-      windowManager.setAlwaysOnTop(false);
-      //windowManager.setAlignment(Alignment.center);
+      AppWindow.setTitleBarStyle(TitleBarStyle.normal);
+      AppWindow.setSize(_lastWindowSize!);
+      AppWindow.setPosition(_lastWindowPosition!);
+      AppWindow.setAlwaysOnTop(false);
+      //AppWindow.setAlignment(Alignment.center);
     }
   }
 
@@ -396,7 +437,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         return;
       }
 
-      if (Platform.isIOS || Platform.isAndroid) {
+      if (AppPlatform.isMobileForm) {
         await ImageGallerySaverPlus.saveImage(
           imageData,
         );
@@ -510,7 +551,10 @@ mixin PlayerGestureControlMixin
     if (lockControlsState.value) {
       return;
     }
-    if (fullScreenState.value) {
+    if (smallWindowState.value) {
+      //小窗模式下双击，直接进入全屏
+      enterFullScreenFromSmallWindow();
+    } else if (fullScreenState.value) {
       exitFull();
     } else {
       enterFullScreen();
@@ -543,13 +587,19 @@ mixin PlayerGestureControlMixin
     throttle = DelayedThrottle(200);
 
     verticalDragging = true;
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isMacOS ||
+        AppPlatform.isOhos) {
       showGestureTip.value = true;
     }
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (AppPlatform.isMobileForm) {
       _currentVolume = await VolumeController.instance.getVolume();
     }
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isMacOS ||
+        AppPlatform.isOhos) {
       _currentBrightness = await ScreenBrightness.instance.application;
     }
   }
@@ -560,7 +610,7 @@ mixin PlayerGestureControlMixin
       return;
     }
     if (verticalDragging == false) return;
-    if (!Platform.isAndroid && !Platform.isIOS) {
+    if (!AppPlatform.isMobileForm) {
       return;
     }
     //String text = "";
@@ -841,8 +891,13 @@ class PlayerController extends BaseController
     }
     disposeStream();
     disposeDanmakuController();
+    // 优先释放播放器并容错，避免系统状态重置异常导致声音残留
+    try {
+      await player.dispose();
+    } catch (e) {
+      Log.logPrint(e);
+    }
     await resetSystem();
-    await player.dispose();
     super.onClose();
   }
 }

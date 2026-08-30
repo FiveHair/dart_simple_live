@@ -11,6 +11,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/log.dart';
 
 typedef TextValidate = bool Function(String text);
@@ -390,7 +391,7 @@ class Utils {
   /// 检查相册权限
   static Future<bool> checkPhotoPermission() async {
     try {
-      if (!Platform.isIOS) {
+      if (!Platform.isIOS && !AppPlatform.isOhos) {
         return true;
       }
       var status = await Permission.photos.status;

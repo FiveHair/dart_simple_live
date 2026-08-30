@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:remixicon/remixicon.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/app_window.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
@@ -14,7 +17,6 @@ import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:simple_live_app/widgets/superchat_card.dart';
 import 'dart:async';
 import 'package:simple_live_core/simple_live_core.dart';
@@ -43,8 +45,16 @@ Widget buildFullControls(
   LiveRoomController controller,
 ) {
   var padding = MediaQuery.of(videoState.context).padding;
+  // 全屏（隐藏系统栏）后 padding 会归零，折叠屏外屏等设备的物理圆角/挖孔
+  // 可能裁掉贴边控件，这里保证一个最小安全边距
+  padding = padding.copyWith(
+    top: max(padding.top, 6),
+    bottom: max(padding.bottom, 8),
+    left: max(padding.left, 8),
+    right: max(padding.right, 8),
+  );
   GlobalKey volumeButtonkey = GlobalKey();
-  return DragToMoveArea(
+  return AppDragToMoveArea(
     child: Stack(
       children: [
         Container(),
@@ -54,8 +64,7 @@ Widget buildFullControls(
         Obx(
           () => Visibility(
             visible: AppSettingsController.instance.playershowSuperChat.value &&
-                ((!Platform.isAndroid && !Platform.isIOS) ||
-                    controller.fullScreenState.value),
+                (AppPlatform.isDesktopForm || controller.fullScreenState.value),
             child: Positioned(
               left: 24,
               bottom: 24,
@@ -297,7 +306,7 @@ Widget buildFullControls(
                   ),
                   const Expanded(child: Center()),
                   Visibility(
-                    visible: !Platform.isAndroid && !Platform.isIOS,
+                    visible: AppPlatform.isDesktopForm,
                     child: IconButton(
                       key: volumeButtonkey,
                       onPressed: () {
@@ -440,8 +449,7 @@ Widget buildControls(
       Obx(
         () => Visibility(
           visible: AppSettingsController.instance.playershowSuperChat.value &&
-              ((!Platform.isAndroid && !Platform.isIOS) ||
-                  controller.fullScreenState.value),
+              (AppPlatform.isDesktopForm || controller.fullScreenState.value),
           child: Positioned(
             left: 24,
             bottom: 24,
@@ -554,7 +562,7 @@ Widget buildControls(
                 ),
                 const Expanded(child: Center()),
                 Visibility(
-                  visible: !Platform.isAndroid && !Platform.isIOS,
+                  visible: AppPlatform.isDesktopForm,
                   child: IconButton(
                     key: volumeButtonkey,
                     onPressed: () {
@@ -597,7 +605,7 @@ Widget buildControls(
                   ),
                 ),
                 Visibility(
-                  visible: !Platform.isAndroid && !Platform.isIOS,
+                  visible: AppPlatform.isDesktopForm,
                   child: IconButton(
                     onPressed: () {
                       controller.enterSmallWindow();
@@ -882,7 +890,7 @@ void showFollowUser(LiveRoomController controller) {
               },
             ),
           ),
-          if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
+          if (AppPlatform.isDesktopForm)
             Positioned(
               right: 12,
               bottom: 12,

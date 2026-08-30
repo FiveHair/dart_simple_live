@@ -311,7 +311,8 @@ class FollowUserPage extends GetView<FollowUserController> {
                       ),
                     );
                   },
-                  onReorderItem: (int oldIndex, int newIndex) {
+                  onReorder: (int oldIndex, int newIndex) {
+                    if (newIndex > oldIndex) newIndex -= 1;
                     controller.updateTagOrder(oldIndex, newIndex);
                   },
                 ),
