@@ -57,8 +57,9 @@ dependencies:
   # file_picker 的全平台版本（上游 10.3.8 + 鸿蒙适配），ohos 以外平台行为与 file_picker 一致
   file_picker_ohos:
     git:
-      url: https://gitcode.com/CPF-Flutter/fluttertpc_file_picker.git
-      ref: br_v10.3.8_ohos
+      # 上游 br_v10.3.8_ohos + macos/ios podspec 命名修复（pod install 失败问题）
+      url: https://github.com/FiveHair/fluttertpc_file_picker.git
+      ref: ohos-podspec-fix
   window_manager: ^0.5.1 #窗口管理
   # 鸿蒙 PC 窗口管理（window_manager 无鸿蒙实现，仅鸿蒙平台生效）
   window_manager_plus:

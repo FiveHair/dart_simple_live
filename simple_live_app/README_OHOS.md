@@ -52,7 +52,7 @@ flutter build hap --debug   # 产物: ohos/entry/build/default/outputs/default/e
 | wakelock_plus | CPF-Flutter/fluttertpc_wakelock_plus | `br_v1.4.0_ohos` |
 | volume_controller / image_gallery_saver_plus / qr_code_scanner_plus | 各 fluttertpc 仓库 | master |
 | flutter_inappwebview | CPF-Flutter/flutter_inappwebview | `br_v6.1.5_ohos` |
-| file_picker | 以 `file_picker_ohos`（上游 10.3.8 全平台 fork）替换 | `br_v10.3.8_ohos` |
+| file_picker | 以 `file_picker_ohos`（上游 10.3.8 全平台 fork + podspec 修复）替换 | [`ohos-podspec-fix`](https://github.com/FiveHair/fluttertpc_file_picker/tree/ohos-podspec-fix) |
 | window_manager_plus（新增，鸿蒙 PC 窗口管理） | CPF-Flutter/fluttertpc_window_manager_plus | master |
 | dart_quickjs | 本仓库 `third_party/dart_quickjs`（见下） | — |
 

@@ -1,5 +1,9 @@
 name: Release All Platforms
 
+# 全平台统一使用 flutter-ohos SDK（CPF flutter_flutter oh-3.41.9-release）：
+# 鸿蒙适配插件（media_kit_video / flutter_inappwebview 等）的 Dart 代码使用了
+# Platform.isOhos，该 API 仅存在于 CPF SDK，官方 Flutter 无法编译。
+# flutter-ohos 是官方 Flutter 的超集 fork，可正常构建其他全部平台。
 on:
   workflow_dispatch:
   push:
@@ -7,6 +11,7 @@ on:
       - "v*"
 
 env:
+  FLUTTER_OHOS_VERSION: oh-3.41.9-release
   JAVA_VERSION: "17"
 
 jobs:
@@ -25,18 +30,33 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Cache flutter-ohos SDK
+        uses: actions/cache@v4
         with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+          path: ${{ runner.temp }}/flutter
+          key: flutter-ohos-3.41.9-${{ runner.os }}
+
+      - name: Setup flutter-ohos
+        run: |
+          if [ ! -d "$RUNNER_TEMP/flutter/bin" ]; then
+            git clone --depth 1 -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          fi
+          echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Configure Android JDK
         run: flutter config --jdk-dir "$JAVA_HOME"
 
+      # GIT_LFS_SKIP_SMUDGE：permission_handler 仓库 example 下有服务端缺失的
+      # LFS 文件；gitcode 网络偶发中断，重试三次
       - name: Restore packages
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: |
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && break
+            echo "pub get failed, retrying ($i)..."; sleep 20
+          done
         working-directory: simple_live_app
+        shell: bash
 
       # fork 环境无签名 secrets 时生成临时 keystore（非官方签名）
       - name: Prepare Android signing
@@ -59,6 +79,7 @@ jobs:
       - name: Build APK
         run: flutter build apk --release --split-per-abi
         working-directory: simple_live_app
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -73,14 +94,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Cache flutter-ohos SDK
+        uses: actions/cache@v4
         with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+          path: ${{ runner.temp }}/flutter
+          key: flutter-ohos-3.41.9-${{ runner.os }}
+
+      - name: Setup flutter-ohos
+        run: |
+          if (-not (Test-Path "$env:RUNNER_TEMP\flutter\bin")) {
+            git clone --depth 1 -b $env:FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$env:RUNNER_TEMP\flutter"
+          }
+          Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\flutter\bin"
+        shell: pwsh
 
       - name: Restore packages
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: |
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && break
+            echo "pub get failed, retrying ($i)..."; sleep 20
+          done
         working-directory: simple_live_app
         shell: bash
 
@@ -113,19 +146,33 @@ jobs:
           sudo apt-get install -y ninja-build libgtk-3-dev liblzma-dev libmpv-dev
         shell: bash
 
-      - uses: subosito/flutter-action@v2
+      - name: Cache flutter-ohos SDK
+        uses: actions/cache@v4
         with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+          path: ${{ runner.temp }}/flutter
+          key: flutter-ohos-3.41.9-${{ runner.os }}
+
+      - name: Setup flutter-ohos
+        run: |
+          if [ ! -d "$RUNNER_TEMP/flutter/bin" ]; then
+            git clone --depth 1 -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          fi
+          echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Restore packages
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: |
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && break
+            echo "pub get failed, retrying ($i)..."; sleep 20
+          done
         working-directory: simple_live_app
+        shell: bash
 
       - name: Build Linux
         run: flutter build linux --release
         working-directory: simple_live_app
+        shell: bash
 
       - name: Package
         run: |
@@ -144,25 +191,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Cache flutter-ohos SDK
+        uses: actions/cache@v4
         with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+          path: ${{ runner.temp }}/flutter
+          key: flutter-ohos-3.41.9-${{ runner.os }}
+
+      - name: Setup flutter-ohos
+        run: |
+          if [ ! -d "$RUNNER_TEMP/flutter/bin" ]; then
+            git clone --depth 1 -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          fi
+          echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Restore packages
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: |
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && break
+            echo "pub get failed, retrying ($i)..."; sleep 20
+          done
         working-directory: simple_live_app
+        shell: bash
 
       # 未签名/未公证，首次打开需右键-打开
       - name: Build macOS
         run: flutter build macos --release
         working-directory: simple_live_app
+        shell: bash
 
       - name: Package
         run: |
           cd simple_live_app/build/macos/Build/Products/Release
-          ditto -c -k --sequesterRsrc --keepParent Simple\ Live.app \
+          APP=$(ls -d *.app | head -1)
+          ditto -c -k --sequesterRsrc --keepParent "$APP" \
             "$GITHUB_WORKSPACE/simple_live_macos.zip"
 
       - name: Upload artifact
@@ -194,25 +256,40 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
+      - name: Cache flutter-ohos SDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/flutter
+          key: flutter-ohos-3.41.9-${{ runner.os }}
+
       - name: Setup flutter-ohos
         run: |
-          git clone -b oh-3.41.9-release https://gitcode.com/CPF-Flutter/flutter_flutter.git $GITHUB_WORKSPACE/flutter
-          echo "$GITHUB_WORKSPACE/flutter/bin" >> $GITHUB_PATH
+          if [ ! -d "$RUNNER_TEMP/flutter/bin" ]; then
+            git clone --depth 1 -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          fi
+          echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
       - name: Get Flutter dependencies
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: |
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && break
+            echo "pub get failed, retrying ($i)..."; sleep 20
+          done
         working-directory: simple_live_app
         shell: bash
 
+      # 补拉 media_kit 适配仓库的 LFS 大文件（libmpv.so.2），否则打进 HAP 的
+      # 是 133 字节指针文件，安装后白屏
       - name: Restore git LFS objects (libmpv)
         run: |
           d=$(ls -d "$HOME/.pub-cache/git/fluttertpc_flutter_media_kit-"* | head -1)
           cd "$d" && git lfs pull
         shell: bash
 
+      # ohos debug 构建缺少 NativeAssetsManifest.json 的工具链补丁（详见 README_OHOS.md）
       - name: Patch flutter_tools (ohos native assets manifest)
-        run: python3 tool/patch_flutter_tools_ohos.py "$GITHUB_WORKSPACE/flutter"
+        run: python3 tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
         working-directory: simple_live_app
         shell: bash
 
@@ -221,6 +298,7 @@ jobs:
         working-directory: simple_live_app
         shell: bash
 
+      # 防止 LFS 指针占位文件混入产物（会导致安装后白屏）
       - name: Verify HAP libraries
         run: python3 tool/verify_ohos_hap.py ./ohos/entry/build/default/outputs/default/entry-default-unsigned.hap
         working-directory: simple_live_app
