@@ -27,13 +27,6 @@ jobs:
           sudo apt-get install -y curl xz-utils zip libglu1-mesa python3
         shell: bash
 
-      # permission_handler 仓库的 example 目录下有一个服务端缺失的 LFS 文件，
-      # 跳过 example 目录；其余 LFS 大文件（libmpv 等）必须正常下载，
-      # 否则 HAP 内是 133 字节的 LFS 指针，安装后白屏
-      - name: Configure git LFS excludes
-        run: git config --global lfs.fetchexclude "example/**"
-        shell: bash
-
       - name: Setup HarmonyOS toolchain
         uses: ErBWs/setup-ohos@v1
         with:
@@ -52,9 +45,19 @@ jobs:
           echo "$GITHUB_WORKSPACE/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
+      # pub 拉取 git 依赖时跳过 LFS smudge（permission_handler 仓库 example 下
+      # 有服务端缺失的 LFS 文件会直接失败），随后再按仓库补拉真实文件
       - name: Get Flutter dependencies
-        run: flutter pub get
+        run: git config --global core.longpaths true && GIT_LFS_SKIP_SMUDGE=1 flutter pub get
         working-directory: simple_live_app
+        shell: bash
+
+      # 补拉 media_kit 适配仓库的 LFS 大文件（libmpv.so.2），否则打进 HAP 的
+      # 是 133 字节指针文件，安装后白屏
+      - name: Restore git LFS objects (libmpv)
+        run: |
+          d=$(ls -d "$HOME/.pub-cache/git/fluttertpc_flutter_media_kit-"* | head -1)
+          cd "$d" && git lfs pull
         shell: bash
 
       # ohos debug 构建缺少 NativeAssetsManifest.json 的工具链补丁（详见 README_OHOS.md）
