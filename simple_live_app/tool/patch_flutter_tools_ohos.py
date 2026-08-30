@@ -21,7 +21,7 @@ import os
 import sys
 
 DEFAULT_SDK = os.environ.get("FLUTTER_OMHOS_ROOT", r"D:\flutter_flutter")
-TARGET = r"packages\flutter_tools\lib\src\build_system\targets\ohos.dart"
+TARGET = "packages/flutter_tools/lib/src/build_system/targets/ohos.dart"
 
 OLD_IMPORT = "import '../../globals.dart' as globals show xcode;"
 NEW_IMPORT = ("import '../../devfs.dart';\n"
