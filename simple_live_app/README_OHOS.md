@@ -15,7 +15,7 @@
 | 环境变量 | `TOOL_HOME`（可选） | 指向 DevEco 安装目录，用于 hvigorw.bat 定位工具链 |
 | PATH | DevEco 的 `tools/ohpm/bin`、`tools/hvigor/bin`、`tools/node/bin` | 构建期使用 |
 | 环境变量 | `PUB_HOSTED_URL=https://pub.flutter-io.cn`、`FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn` | 国内镜像 |
-| 环境变量 | `GIT_LFS_SKIP_SMUDGE=1`（建议） | 部分适配仓库的 LFS 示例资源在服务端缺失，跳过后不影响构建 |
+| 环境变量 | `git config --global lfs.fetchexclude "example/**"`（必须） | permission_handler 仓库 example 目录有服务端缺失的 LFS 文件；其余 LFS 大文件（libmpv 等）必须正常下载，否则 HAP 内是指针文件、安装后白屏 |
 
 ```bash
 git clone -b oh-3.41.9-release https://gitcode.com/CPF-Flutter/flutter_flutter.git flutter_ohos

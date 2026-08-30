@@ -27,6 +27,13 @@ jobs:
           sudo apt-get install -y curl xz-utils zip libglu1-mesa python3
         shell: bash
 
+      # permission_handler 仓库的 example 目录下有一个服务端缺失的 LFS 文件，
+      # 跳过 example 目录；其余 LFS 大文件（libmpv 等）必须正常下载，
+      # 否则 HAP 内是 133 字节的 LFS 指针，安装后白屏
+      - name: Configure git LFS excludes
+        run: git config --global lfs.fetchexclude "example/**"
+        shell: bash
+
       - name: Setup HarmonyOS toolchain
         uses: ErBWs/setup-ohos@v1
         with:
@@ -46,7 +53,7 @@ jobs:
         shell: bash
 
       - name: Get Flutter dependencies
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: flutter pub get
         working-directory: simple_live_app
         shell: bash
 
@@ -57,7 +64,14 @@ jobs:
         shell: bash
 
       - name: Build HAP (release, unsigned)
-        run: GIT_LFS_SKIP_SMUDGE=1 flutter build hap --release --no-codesign
+        run: flutter build hap --release --no-codesign
+        working-directory: simple_live_app
+        shell: bash
+
+      # 防止 LFS 指针占位文件混入产物（会导致安装后白屏）
+      - name: Verify HAP libraries
+        run: |
+          python3 tool/verify_ohos_hap.py ./ohos/entry/build/default/outputs/default/entry-default-unsigned.hap
         working-directory: simple_live_app
         shell: bash
 
