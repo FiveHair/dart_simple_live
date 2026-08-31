@@ -222,7 +222,14 @@ DevEco 的 `ohpm.bat` 存在批处理无限递归 bug（`%VAR%` 在代码块内�
 
 ## 四、其他平台回归
 
+**CI 客户端范围**（2026-08 起）：**鸿蒙 HAP、Windows、Android**（含 TV APK）。
+iOS / macOS / Linux 的流水线已按需裁撤——如需恢复：
+- macOS/Linux：主体链路已验证过可行，恢复 release_all.yml 对应 job 即可
+  （需 device_info_plus fork 已处理 macOS 编译问题）；
+- iOS：`file_picker_ohos` 的 iOS podspec 需要进一步处理（pod 改名后
+  自定义 modulemap 与 use_frameworks! 不兼容，详见
+  FiveHair/fluttertpc_file_picker 提交记录）。
+
 `flutter analyze`（ohos 3.41.9 SDK 下全量）零问题；ohos 以外的平台编译不受影响：
 代码层仅使用两版框架共有的 API，插件覆盖在非 ohos 平台即为上游实现。
-Windows/Android 原生构建需要对应工具链（Visual Studio / Android SDK），本机未安装，
-建议在 CI 或装有工具链的环境执行 `flutter build windows` / `flutter build apk` 做最终确认。
+Android/Windows 原生构建在 GitHub Actions 已验证（flutter-ohos SDK 构建）。
