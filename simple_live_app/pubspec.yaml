@@ -148,11 +148,12 @@ dependency_overrides:
       ref: br_url_launcher-v6.3.2_ohos
 
   # plus_plugins 系列（版本与主依赖约束一致，ohos 为内联实现）
+  # device_info_plus：CPF 分支的 macOS 源码调用了未定义的 getMacModelName
+  # （macOS 构建必挂），改用补齐实现的 fork（其余代码与上游分支一致）
   device_info_plus:
     git:
-      url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git
-      path: packages/device_info_plus/device_info_plus
-      ref: br_device_info_plus-v12.3.0_ohos
+      url: https://github.com/FiveHair/fluttertpc_device_info_plus.git
+      ref: ohos-macos-fix
   package_info_plus:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_plus_plugins.git

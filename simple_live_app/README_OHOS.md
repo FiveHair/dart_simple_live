@@ -47,7 +47,8 @@ flutter build hap --debug   # 产物: ohos/entry/build/default/outputs/default/e
 | media_kit / media_kit_video / media_kit_libs_video | CPF-Flutter/fluttertpc_flutter_media_kit | `1.2.6-ohos-1.0.0` |
 | media_kit_libs_windows_video | 同上（libs/windows 子目录，1.0.12 仅有适配版） | 同上 |
 | path_provider(+_ohos) / url_launcher(+_ohos) | CPF-Flutter/flutter_packages | `br_path_provider-v2.1.5_ohos` / `br_url_launcher-v6.3.2_ohos` |
-| device_info_plus / package_info_plus / connectivity_plus / network_info_plus / share_plus | CPF-Flutter/flutter_plus_plugins | 各自版本匹配分支（12.3.0 / 9.0.0 / 7.0.0 / 7.0.0 / 12.0.1） |
+| device_info_plus | [`FiveHair/fluttertpc_device_info_plus`](https://github.com/FiveHair/fluttertpc_device_info_plus)（上游 `br_device_info_plus-v12.3.0_ohos` + macOS `getMacModelName` 编译修复，上游调用了该函数但从未给出实现） | `ohos-macos-fix` |
+| package_info_plus / connectivity_plus / network_info_plus / share_plus | CPF-Flutter/flutter_plus_plugins | 各自版本匹配分支（9.0.0 / 7.0.0 / 7.0.0 / 12.0.1） |
 | permission_handler | CPF-Flutter/flutter_permission_handler | `br_v12.0.1_ohos` |
 | wakelock_plus | CPF-Flutter/fluttertpc_wakelock_plus | `br_v1.4.0_ohos` |
 | volume_controller / image_gallery_saver_plus / qr_code_scanner_plus | 各 fluttertpc 仓库 | master |
