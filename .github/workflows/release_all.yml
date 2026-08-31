@@ -108,6 +108,14 @@ jobs:
           Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\flutter\bin"
         shell: pwsh
 
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       - name: Restore packages
         run: |
           for i in 1 2 3; do
@@ -119,14 +127,6 @@ jobs:
         working-directory: simple_live_app
         shell: bash
 
-
-      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
-      - name: Patch flutter_tools (ohos)
-        run: |
-          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
-          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
-        working-directory: simple_live_app
-        shell: bash
 
       - name: Build Windows
         run: flutter build windows --release
@@ -163,6 +163,14 @@ jobs:
           echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       - name: Restore packages
         run: |
           for i in 1 2 3; do
@@ -174,14 +182,6 @@ jobs:
         working-directory: simple_live_app
         shell: bash
 
-
-      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
-      - name: Patch flutter_tools (ohos)
-        run: |
-          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
-          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
-        working-directory: simple_live_app
-        shell: bash
 
       - name: Build Linux
         run: flutter build linux --release
@@ -211,6 +211,14 @@ jobs:
           echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       - name: Restore packages
         run: |
           for i in 1 2 3; do
@@ -223,14 +231,6 @@ jobs:
         shell: bash
 
       # 未签名/未公证，首次打开需右键-打开
-
-      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
-      - name: Patch flutter_tools (ohos)
-        run: |
-          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
-          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
-        working-directory: simple_live_app
-        shell: bash
 
       - name: Build macOS
         run: flutter build macos --release

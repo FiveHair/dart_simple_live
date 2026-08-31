@@ -20,7 +20,7 @@ dependencies:
   logger: ^2.6.2 #日志
   intl: ^0.20.2 #国际化
   qr_flutter: ^4.1.0 #二维码生成
-  dynamic_color: ^1.8.1 #动态颜色
+  dynamic_color: 1.7.0 #动态颜色（钉 1.7.0：1.8+ 的 android 构建脚本依赖新版工具链自动应用 kotlin 插件，flutter-ohos 3.41 编译不过）
   path: any
   collection: any
   udp: ^5.0.3 #UDP
