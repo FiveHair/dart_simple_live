@@ -77,11 +77,12 @@ jobs:
           fi
         shell: bash
 
-      # flutter_tools 双补丁（详见 README_OHOS.md）：
+      # flutter_tools 三补丁（详见 README_OHOS.md）：
       # 1. ohos 构建把 NativeAssetsManifest.json 打进 flutter_assets
       #    （缺它运行时报 "No asset with id ... found"，如 dart_quickjs）
       # 2. Windows 下 flutter_tools 直接 spawn 裸 'ohpm' 必败（无 ohpm.exe），
       #    改为优先调用项目内垫片 ohos/build-tools/ohpm/bin/ohpm.bat
+      # 3. pub get 后的平台工具再生成不再强制鸿蒙 SDK
       - name: Patch flutter_tools (ohos)
         run: python3 tool/patch_flutter_tools_ohos.py "$GITHUB_WORKSPACE/flutter"
         working-directory: simple_live_app

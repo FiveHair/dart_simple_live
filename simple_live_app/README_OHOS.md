@@ -91,7 +91,7 @@ ohos SDK（Flutter 3.41.9）低于仓库锁定的官方版本（3.47.1），已�
 （`input.config.code.cCompiler`）时追加 `--target=<arch>-linux-ohos --sysroot=<sdk>/native/sysroot`。
 上游修复后可移除此覆盖。
 
-### 5.1 flutter_tools 双补丁（`tool/patch_flutter_tools_ohos.py`）
+### 5.1 flutter_tools 三补丁（`tool/patch_flutter_tools_ohos.py`）
 
 **补丁 1：native assets manifest（全平台、全构建模式）**
 
@@ -107,6 +107,15 @@ Windows 上 ohpm 只有 `ohpm.bat`（CreateProcess 不认无扩展名脚本）�
 "系统找不到指定的文件"。补丁改为优先调用项目内修复版垫片
 `ohos/build-tools/ohpm/bin/ohpm.bat`（见下文 6），不存在时回退
 `cmd /c ohpm.bat`。
+
+**补丁 3：pub get 不再强制鸿蒙 SDK（所有 CI job 需要）**
+
+`flutter pub get` 完成后会为所有平台目录再生成工具文件，其中 ohos 分支的
+`hvigor.updateLocalProperties` 默认 `requireHarmonySdk: true`——**没有鸿蒙
+SDK 的 job（Android/iOS/Linux/macOS/Windows 构建）pub get 会以
+"No Hmos SDK found. Try setting the HOS_SDK_HOME environment variable."
+直接退出**（android 分支同场景传的是 `requireAndroidSdk: false`）。补丁对齐
+android 行为；因此全平台 CI 的 pub get 之前都必须执行本补丁脚本。
 
 修复脚本对本地 SDK（默认 `D:\flutter_flutter`）执行；**升级/切换 flutter-ohos
 SDK 分支后需要重新执行一次**：

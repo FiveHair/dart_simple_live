@@ -16,6 +16,13 @@ ohpm 只有 ohpm.bat（CreateProcess 不认无扩展名脚本），spawn 必报
 ohos/build-tools/ohpm/bin/ohpm.bat（见 ohos/hvigorw.bat 的镜像逻辑，
 DevEco 原版 ohpm.bat 在 Dart 派生的 cmd 环境下有批处理无限递归 bug）。
 
+补丁 3（全平台）：pub get / 非 ohos 构建不再强制要求鸿蒙 SDK。
+背景：flutter pub get 完成后会为所有已存在平台目录再生成工具文件，其中 ohos
+分支的 hvigor.updateLocalProperties 默认 requireHarmonySdk: true，没有鸿蒙
+SDK 的 CI job（Android/Linux/macOS/Windows）pub get 直接以
+"No Hmos SDK found. Try setting the HOS_SDK_HOME environment variable."
+退出（android 分支同样场景传的是 requireAndroidSdk: false）。
+
 用法（在补丁丢失或升级 SDK 后执行一次）:
   python tool/patch_flutter_tools_ohos.py [flutter_ohos_sdk_path]
 默认 SDK 路径取 FLUTTER_OMHOS_ROOT 环境变量或 D:/flutter_flutter。
@@ -30,6 +37,7 @@ import sys
 DEFAULT_SDK = os.environ.get("FLUTTER_OMHOS_ROOT", r"D:\flutter_flutter")
 TARGET = "packages/flutter_tools/lib/src/build_system/targets/ohos.dart"
 TARGET2 = "packages/flutter_tools/lib/src/ohos/hvigor.dart"
+TARGET3 = "packages/flutter_tools/lib/src/project.dart"
 
 OLD_IMPORT = "import '../../globals.dart' as globals show xcode;"
 NEW_IMPORT = ("import '../../devfs.dart';\n"
@@ -71,6 +79,11 @@ NEW_OHPM = """  // patched: windows has no ohpm.exe, bare 'ohpm' cannot be spawn
     installCmd = <String>['ohpm', 'install', '--all'];
   }"""
 
+OLD_HMOS = """    hvigor.updateLocalProperties(project: parent);"""
+NEW_HMOS = """    // patched: tooling regeneration (pub get / non-ohos builds) must not
+    // require the Harmony SDK (mirrors android's requireAndroidSdk: false)
+    hvigor.updateLocalProperties(project: parent, requireHarmonySdk: false);"""
+
 
 def patch_file(sdk, rel, old, new, label):
     path = os.path.join(sdk, rel)
@@ -97,8 +110,9 @@ def main():
     if ok1:
         ok1 = patch_file(sdk, TARGET, OLD_CALL, NEW_CALL, "native assets manifest")
     ok2 = patch_file(sdk, TARGET2, OLD_OHPM, NEW_OHPM, "windows ohpm spawn")
+    ok3 = patch_file(sdk, TARGET3, OLD_HMOS, NEW_HMOS, "no hmos sdk on pub get")
 
-    if not (ok1 and ok2):
+    if not (ok1 and ok2 and ok3):
         sys.exit(1)
 
     for f in ("bin/cache/flutter_tools.stamp", "bin/cache/flutter_tools.snapshot"):

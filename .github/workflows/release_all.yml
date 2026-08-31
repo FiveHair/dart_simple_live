@@ -43,6 +43,15 @@ jobs:
       - name: Configure Android JDK
         run: flutter config --jdk-dir "$JAVA_HOME"
 
+      # flutter_tools 三补丁（详见 README_OHOS.md）：关键为 pub get 后的
+      # 平台工具再生成不再强制鸿蒙 SDK（否则无 SDK 的 job pub get 必挂）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       # GIT_LFS_SKIP_SMUDGE：permission_handler 仓库 example 下有服务端缺失的
       # LFS 文件；gitcode 网络偶发中断，重试三次，全部失败时显式报错退出
       - name: Restore packages
@@ -94,6 +103,7 @@ jobs:
 
       - name: Setup flutter-ohos
         run: |
+          git config --global core.longpaths true
           git clone -b $env:FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$env:RUNNER_TEMP\flutter"
           Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\flutter\bin"
         shell: pwsh
@@ -106,6 +116,15 @@ jobs:
           done
           echo "ERROR: flutter pub get failed after 3 attempts" >&2
           exit 1
+        working-directory: simple_live_app
+        shell: bash
+
+
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
         working-directory: simple_live_app
         shell: bash
 
@@ -155,6 +174,15 @@ jobs:
         working-directory: simple_live_app
         shell: bash
 
+
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       - name: Build Linux
         run: flutter build linux --release
         working-directory: simple_live_app
@@ -195,6 +223,15 @@ jobs:
         shell: bash
 
       # 未签名/未公证，首次打开需右键-打开
+
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       - name: Build macOS
         run: flutter build macos --release
         working-directory: simple_live_app

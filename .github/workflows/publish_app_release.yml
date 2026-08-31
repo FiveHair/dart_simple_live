@@ -78,6 +78,14 @@ jobs:
       - name: Enable Flutter Desktop
         run: flutter config --enable-macos-desktop
 
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       #更新Flutter的packages（跳过 LFS smudge + 网络重试）
       - name: Restore packages
         run: |
@@ -98,9 +106,11 @@ jobs:
       - name: Install appdmg
         run: npm install -g appdmg
 
-      # 设置flutter_distributor环境
+      # 设置flutter_distributor环境（pub 全局命令需把 bin 目录加入 PATH）
       - name: Install flutter_distributor
-        run: dart pub global activate flutter_distributor
+        run: |
+          dart pub global activate flutter_distributor
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
 
       #打包APK
       - name: Build APK
@@ -181,10 +191,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      # 签出代码
+      # 签出代码（构建触发源：tag 或分支，不再写死 master 分支）
       - uses: actions/checkout@v6
-        with:
-          ref: master
 
       # 设置 flutter-ohos SDK（鸿蒙插件依赖 Platform.isOhos，官方 SDK 编译不过）
       - name: Setup flutter-ohos
@@ -200,6 +208,14 @@ jobs:
       # 打开Linux Desktop支持
       - name: Enable Flutter Desktop
         run: flutter config --enable-linux-desktop
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
+
       # 更新Flutter的packages（跳过 LFS smudge + 网络重试）
       - name: Restore Packages
         run: |
@@ -210,9 +226,11 @@ jobs:
           done
           echo "ERROR: flutter pub get failed after 3 attempts" >&2
           exit 1
-      # 设置flutter_distributor环境
+      # 设置flutter_distributor环境（pub 全局命令需把 bin 目录加入 PATH）
       - name: Install flutter_distributor
-        run: dart pub global activate flutter_distributor
+        run: |
+          dart pub global activate flutter_distributor
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
       # build Linux ZIP\DMG
       - name: Build Linux
         run: |
@@ -246,18 +264,25 @@ jobs:
     permissions:
       contents: write
     steps:
-      # 签出代码
+      # 签出代码（构建触发源：tag 或分支，不再写死 master 分支）
       - uses: actions/checkout@v6
-        with:
-          ref: master
-      # 设置 flutter-ohos SDK（鸿蒙插件依赖 Platform.isOhos，官方 SDK 编译不过）
+      # 设置 flutter-ohos SDK（鸿蒙插件依赖 Platform.isOhos，官方 SDK 编译不过；
+      # longpaths：git 依赖仓库内路径超长会导致检出失败）
       - name: Setup flutter-ohos
         run: |
+          git config --global core.longpaths true
           git clone -b $env:FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$env:RUNNER_TEMP\flutter"
           Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\flutter\bin"
         shell: pwsh
       - name: Enable Flutter Desktop
         run: flutter config --enable-windows-desktop
+      # flutter_tools 三补丁：pub get 不再强制鸿蒙 SDK 等（详见 README_OHOS.md）
+      - name: Patch flutter_tools (ohos)
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then py=python; else py=python3; fi
+          "$py" tool/patch_flutter_tools_ohos.py "$RUNNER_TEMP/flutter"
+        working-directory: simple_live_app
+        shell: bash
       - name: Restore Packages
         run: |
           cd simple_live_app
@@ -268,9 +293,12 @@ jobs:
           echo "ERROR: flutter pub get failed after 3 attempts" >&2
           exit 1
         shell: bash
-      # 设置flutter_distributor环境
+      # 设置flutter_distributor环境（pub 全局命令需把 bin 目录加入 PATH）
       - name: Install flutter_distributor
-        run: dart pub global activate flutter_distributor
+        run: |
+          dart pub global activate flutter_distributor
+          Add-Content $env:GITHUB_PATH "$env:LOCALAPPDATA\Pub\Cache\bin"
+        shell: pwsh
       # build Windows ZIP\MSIX
       - name: Build Windows
         run: |
