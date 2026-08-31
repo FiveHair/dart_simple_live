@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_manager_plus/window_manager_plus.dart' as wmp;
@@ -19,9 +21,33 @@ class AppWindow {
 
   static wmp.WindowManagerPlus get _plus => wmp.WindowManagerPlus.current;
 
+  /// 鸿蒙端窗口调用统一兜底。
+  ///
+  /// window_manager_plus 的 ohos 实现有两类缺陷：
+  /// 1. setAlignment / setSize / setPosition / setAlwaysOnTop 等方法未实现，
+  ///    落到 default 分支返回 notImplemented，Dart 侧抛 MissingPluginException；
+  /// 2. setMinimumSize / setTitle / focus 等方法已实现但从不回包，
+  ///    Dart 侧 await 会永久挂起。
+  ///
+  /// 这些方法一旦出现在启动链路（main 的 initWindow）中，runApp 之前就会
+  /// 抛异常或卡死，表现为鸿蒙 PC 打开即白屏（手机端不走窗口链路，不受影响）。
+  /// 因此鸿蒙端所有窗口调用统一 catch + 超时，窗口问题不允许阻塞应用。
+  static Future<T?> _run<T>(Future<T> Function() body) async {
+    if (!_usePlus) {
+      return body();
+    }
+    try {
+      return await body().timeout(const Duration(seconds: 2));
+    } on TimeoutException {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> ensureInitialized() async {
     if (_usePlus) {
-      await wmp.WindowManagerPlus.ensureInitialized(0);
+      await _run(() => wmp.WindowManagerPlus.ensureInitialized(0));
     } else {
       await windowManager.ensureInitialized();
     }
@@ -34,13 +60,10 @@ class AppWindow {
     required VoidCallback callback,
   }) async {
     if (_usePlus) {
-      await _plus.waitUntilReadyToShow(
-        wmp.WindowOptions(
-          minimumSize: minimumSize,
-          center: center,
-          title: title,
-        ),
-        callback,
+      // ohos 端 center / minimumSize / title 分别对应未实现或不回包的方法
+      // （见 [_run] 注释），不能传入，否则启动即白屏；只保留回调
+      await _run(
+        () => _plus.waitUntilReadyToShow(const wmp.WindowOptions(), callback),
       );
     } else {
       await windowManager.waitUntilReadyToShow(
@@ -54,50 +77,96 @@ class AppWindow {
     }
   }
 
-  static Future<void> show() async =>
-      _usePlus ? _plus.show() : windowManager.show();
+  static Future<void> show() async {
+    if (_usePlus) {
+      await _run(_plus.show);
+    } else {
+      await windowManager.show();
+    }
+  }
 
-  static Future<void> focus() async =>
-      _usePlus ? _plus.focus() : windowManager.focus();
+  static Future<void> focus() async {
+    if (_usePlus) {
+      await _run(_plus.focus);
+    } else {
+      await windowManager.focus();
+    }
+  }
 
-  static Future<bool> isFullScreen() async =>
-      _usePlus ? _plus.isFullScreen() : windowManager.isFullScreen();
+  static Future<bool> isFullScreen() async {
+    if (_usePlus) {
+      return await _run(_plus.isFullScreen) ?? false;
+    }
+    return windowManager.isFullScreen();
+  }
 
-  static Future<void> setFullScreen(bool isFullScreen) async => _usePlus
-      ? _plus.setFullScreen(isFullScreen)
-      : windowManager.setFullScreen(isFullScreen);
+  static Future<void> setFullScreen(bool isFullScreen) async {
+    if (_usePlus) {
+      await _run(() => _plus.setFullScreen(isFullScreen));
+    } else {
+      await windowManager.setFullScreen(isFullScreen);
+    }
+  }
 
   static Future<void> setTitleBarStyle(TitleBarStyle style) async {
     if (_usePlus) {
-      await _plus.setTitleBarStyle(
-        style == TitleBarStyle.hidden
-            ? wmp.TitleBarStyle.hidden
-            : wmp.TitleBarStyle.normal,
+      await _run(
+        () => _plus.setTitleBarStyle(
+          style == TitleBarStyle.hidden
+              ? wmp.TitleBarStyle.hidden
+              : wmp.TitleBarStyle.normal,
+        ),
       );
     } else {
       await windowManager.setTitleBarStyle(style);
     }
   }
 
-  static Future<Size> getSize() async =>
-      _usePlus ? _plus.getSize() : windowManager.getSize();
+  static Future<Size> getSize() async {
+    if (_usePlus) {
+      return await _run(_plus.getSize) ?? Size.zero;
+    }
+    return windowManager.getSize();
+  }
 
-  static Future<Offset> getPosition() async =>
-      _usePlus ? _plus.getPosition() : windowManager.getPosition();
+  static Future<Offset> getPosition() async {
+    if (_usePlus) {
+      return await _run(_plus.getPosition) ?? Offset.zero;
+    }
+    return windowManager.getPosition();
+  }
 
-  static Future<void> setSize(Size size) async =>
-      _usePlus ? _plus.setSize(size) : windowManager.setSize(size);
+  static Future<void> setSize(Size size) async {
+    if (_usePlus) {
+      await _run(() => _plus.setSize(size));
+    } else {
+      await windowManager.setSize(size);
+    }
+  }
 
-  static Future<void> setPosition(Offset position) async => _usePlus
-      ? _plus.setPosition(position)
-      : windowManager.setPosition(position);
+  static Future<void> setPosition(Offset position) async {
+    if (_usePlus) {
+      await _run(() => _plus.setPosition(position));
+    } else {
+      await windowManager.setPosition(position);
+    }
+  }
 
-  static Future<void> setAlwaysOnTop(bool isAlwaysOnTop) async => _usePlus
-      ? _plus.setAlwaysOnTop(isAlwaysOnTop)
-      : windowManager.setAlwaysOnTop(isAlwaysOnTop);
+  static Future<void> setAlwaysOnTop(bool isAlwaysOnTop) async {
+    if (_usePlus) {
+      await _run(() => _plus.setAlwaysOnTop(isAlwaysOnTop));
+    } else {
+      await windowManager.setAlwaysOnTop(isAlwaysOnTop);
+    }
+  }
 
-  static Future<void> setTitle(String title) async =>
-      _usePlus ? _plus.setTitle(title) : windowManager.setTitle(title);
+  static Future<void> setTitle(String title) async {
+    if (_usePlus) {
+      await _run(() => _plus.setTitle(title));
+    } else {
+      await windowManager.setTitle(title);
+    }
+  }
 }
 
 /// DragToMoveArea 的跨平台包装（隐藏标题栏后拖动窗口）

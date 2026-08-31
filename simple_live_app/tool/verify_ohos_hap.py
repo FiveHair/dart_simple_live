@@ -4,9 +4,8 @@
 
 背景：CI 环境若跳过了 git LFS 下载（或 LFS 服务端缺文件），依赖仓库中的
 大体积 .so（如 libmpv.so.2）会以 133 字节的 LFS 指针文本混入 HAP，
-安装后运行白屏。此脚本在打包后校验所有 arm64 .so 均为真实 ELF 文件。
+安装后运行白屏。此脚本在打包后校验 HAP 内 libs/<abi>/ 下所有 .so 均为真实 ELF 文件。
 """
-import struct
 import sys
 import zipfile
 
@@ -21,10 +20,8 @@ def main():
     failed = []
     checked = 0
     for name in z.namelist():
-        # 匹配 libxxx.so 与 libxxx.so.2 这类带版本号的库
-        if ".so" not in name.split("/")[-1]:
-            continue
-        if "arm64" not in name and "armeabi" not in name:
+        # 匹配 libs/<abi>/libxxx.so 与 libxxx.so.2 这类带版本号的库
+        if not name.startswith("libs/") or ".so" not in name.split("/")[-1]:
             continue
         head = z.read(name)[:64]
         checked += 1

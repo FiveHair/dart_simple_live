@@ -11,6 +11,7 @@ env:
   ANDROID_API_LEVEL: "36"
   ANDROID_BUILD_TOOLS_VERSION: "35.0.0"
   ANDROID_NDK_VERSION: "28.2.13676358"
+  FLUTTER_OHOS_VERSION: oh-3.41.9-release
 
 jobs:
   build-mac-ios-android:
@@ -18,29 +19,31 @@ jobs:
     permissions:
       contents: write
     steps:
-      #签出代码
+      #签出代码（构建触发源：tag 或分支，不再写死 master 分支）
       - uses: actions/checkout@v6
-        with:
-          ref: master
 
       # device_info_plus 12.4.0 使用 iOS 26.1 SDK 新增的 isiOSAppOnVision API。
       # macos-15-intel 默认使用 Xcode 16.4，因此显式选择 runner 已安装的新版本。
       - name: Select Xcode
         run: sudo xcode-select --switch "/Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer"
 
-      #APK签名设置
-      - name: Download Android keystore
-        id: android_keystore
-        uses: timheuer/base64-to-file@v2
-        with:
-          fileName: keystore.jks
-          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
-      - name: Create key.properties
+      #APK签名：fork 无签名 secrets 时生成临时 keystore（非官方签名）
+      - name: Prepare Android signing
+        working-directory: simple_live_app/android
         run: |
-          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" > simple_live_app/android/key.properties
-          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> simple_live_app/android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> simple_live_app/android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> simple_live_app/android/key.properties
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+            printf 'storeFile=%s\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' \
+              "$PWD/keystore.jks" "${{ secrets.STORE_PASSWORD }}" \
+              "${{ secrets.KEY_PASSWORD }}" "${{ secrets.KEY_ALIAS }}" > key.properties
+          else
+            keytool -genkeypair -v -keystore keystore.jks -storepass simplelive \
+              -keypass simplelive -alias simplelive -keyalg RSA -keysize 2048 \
+              -validity 10000 -dname "CN=Simple Live CI, OU=CI, O=Simple Live, C=CN"
+            printf 'storeFile=%s\nstorePassword=simplelive\nkeyPassword=simplelive\nkeyAlias=simplelive\n' \
+              "$PWD/keystore.jks" > key.properties
+          fi
+        shell: bash
 
       #设置JAVA环境
       - uses: actions/setup-java@v6
@@ -59,13 +62,14 @@ jobs:
             build-tools;${{ env.ANDROID_BUILD_TOOLS_VERSION }}
             ndk;${{ env.ANDROID_NDK_VERSION }}
 
-      #设置Flutter
-      - name: Flutter action
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+      #设置 flutter-ohos SDK：鸿蒙适配插件的 Dart 代码使用 Platform.isOhos，
+      #该 API 仅存在于 CPF SDK，官方 Flutter 无法编译。必须完整克隆（浅克隆
+      #丢 git tag，SDK 版本会解析成 0.0.0-unknown 导致 pub get 失败）
+      - name: Setup flutter-ohos
+        run: |
+          git clone -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Configure Android JDK
         run: flutter config --jdk-dir "$JAVA_HOME"
@@ -74,11 +78,16 @@ jobs:
       - name: Enable Flutter Desktop
         run: flutter config --enable-macos-desktop
 
-      #更新Flutter的packages
+      #更新Flutter的packages（跳过 LFS smudge + 网络重试）
       - name: Restore packages
         run: |
           cd simple_live_app
-          flutter pub get
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && exit 0
+            echo "pub get failed, retry ($i/3)..."; sleep 20
+          done
+          echo "ERROR: flutter pub get failed after 3 attempts" >&2
+          exit 1
 
       - name: Validate Android toolchain
         run: |
@@ -148,25 +157,14 @@ jobs:
             simple_live_app/build/dist/*/*.dmg
             simple_live_app/build/dist/*/*.zip
 
-      #读取版本信息
-      - name: Read version
-        id: version
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: assets/app_version.json
-      - name: Echo version
-        run: echo "${{ fromJson(steps.version.outputs.content).version }}"
-      - name: Echo version content
-        run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
-
-      #上传至Release
+      #上传至Release（assets/app_version.json 已随上游"移除检查更新"提交删除，
+      #改用 tag 名命名 + 自动生成 release notes；TOKEN 未配置时回退默认令牌）
       - name: Upload Release
         uses: softprops/action-gh-release@v3
         with:
-          name: "${{ fromJson(steps.version.outputs.content).version }}"
-          body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
-          prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
-          token: ${{ secrets.TOKEN }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          token: ${{ secrets.TOKEN || github.token }}
           files: |
             simple_live_app/build/app/outputs/flutter-apk/app-x86_64-release.apk
             simple_live_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
@@ -188,13 +186,12 @@ jobs:
         with:
           ref: master
 
-      # 设置Flutter环境
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+      # 设置 flutter-ohos SDK（鸿蒙插件依赖 Platform.isOhos，官方 SDK 编译不过）
+      - name: Setup flutter-ohos
+        run: |
+          git clone -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
+        shell: bash
       # 安装依赖
       - name: Update apt-get
         run: sudo apt-get update
@@ -203,11 +200,16 @@ jobs:
       # 打开Linux Desktop支持
       - name: Enable Flutter Desktop
         run: flutter config --enable-linux-desktop
-      # 更新Flutter的packages
+      # 更新Flutter的packages（跳过 LFS smudge + 网络重试）
       - name: Restore Packages
         run: |
           cd simple_live_app
-          flutter pub get
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && exit 0
+            echo "pub get failed, retry ($i/3)..."; sleep 20
+          done
+          echo "ERROR: flutter pub get failed after 3 attempts" >&2
+          exit 1
       # 设置flutter_distributor环境
       - name: Install flutter_distributor
         run: dart pub global activate flutter_distributor
@@ -225,25 +227,13 @@ jobs:
             simple_live_app/build/dist/*/*.deb
             simple_live_app/build/dist/*/*.zip
 
-      # 读取版本信息
-      - name: Read version
-        id: version
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: assets/app_version.json
-      - name: Echo version
-        run: echo "${{ fromJson(steps.version.outputs.content).version }}"
-      - name: Echo version content
-        run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
-
-      #上传至Release
+      #上传至Release（同上：tag 名 + 自动生成 notes + token 回退）
       - name: Upload Release
         uses: softprops/action-gh-release@v3
         with:
-          name: "${{ fromJson(steps.version.outputs.content).version }}"
-          body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
-          prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
-          token: ${{ secrets.TOKEN }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          token: ${{ secrets.TOKEN || github.token }}
           files: |
             simple_live_app/build/dist/*/*.deb
             simple_live_app/build/dist/*/*.zip
@@ -260,19 +250,24 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: master
-      # 设置Flutter环境
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version-file: simple_live_app/.fvmrc
-          cache: true
+      # 设置 flutter-ohos SDK（鸿蒙插件依赖 Platform.isOhos，官方 SDK 编译不过）
+      - name: Setup flutter-ohos
+        run: |
+          git clone -b $env:FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$env:RUNNER_TEMP\flutter"
+          Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\flutter\bin"
+        shell: pwsh
       - name: Enable Flutter Desktop
         run: flutter config --enable-windows-desktop
       - name: Restore Packages
         run: |
           cd simple_live_app
-          flutter pub get
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && exit 0
+            echo "pub get failed, retry ($i/3)..."; sleep 20
+          done
+          echo "ERROR: flutter pub get failed after 3 attempts" >&2
+          exit 1
+        shell: bash
       # 设置flutter_distributor环境
       - name: Install flutter_distributor
         run: dart pub global activate flutter_distributor
@@ -291,25 +286,13 @@ jobs:
             simple_live_app/build/dist/*/*.msix
             simple_live_app/build/dist/*/*.zip
 
-      # 读取版本信息
-      - name: Read version
-        id: version
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: assets/app_version.json
-      - name: Echo version
-        run: echo "${{ fromJson(steps.version.outputs.content).version }}"
-      - name: Echo version content
-        run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
-
-      #上传至Release
+      #上传至Release（同上：tag 名 + 自动生成 notes + token 回退）
       - name: Upload Release
         uses: softprops/action-gh-release@v3
         with:
-          name: "${{ fromJson(steps.version.outputs.content).version }}"
-          body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
-          prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
-          token: ${{ secrets.TOKEN }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          token: ${{ secrets.TOKEN || github.token }}
           files: |
             simple_live_app/build/dist/*/*.msix
             simple_live_app/build/dist/*/*.zip

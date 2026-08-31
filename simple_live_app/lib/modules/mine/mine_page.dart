@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
+import 'package:simple_live_app/app/app_platform.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
@@ -251,7 +252,10 @@ class MinePage extends StatelessWidget {
                   ),
                   onTap: () {
                     launchUrlString(
-                      "https://github.com/xiaoyaocz/dart_simple_live",
+                      // 鸿蒙版（本分支）主页，其余平台保持上游仓库
+                      AppPlatform.isOhos
+                          ? "https://github.com/FiveHair/dart_simple_live"
+                          : "https://github.com/xiaoyaocz/dart_simple_live",
                       mode: LaunchMode.externalApplication,
                     );
                   },

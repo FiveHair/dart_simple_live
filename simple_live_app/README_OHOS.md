@@ -91,14 +91,24 @@ ohos SDK（Flutter 3.41.9）低于仓库锁定的官方版本（3.47.1），已�
 （`input.config.code.cCompiler`）时追加 `--target=<arch>-linux-ohos --sysroot=<sdk>/native/sysroot`。
 上游修复后可移除此覆盖。
 
-### 5.1 debug 包 native assets 运行时修复（`tool/patch_flutter_tools_ohos.py`）
+### 5.1 flutter_tools 双补丁（`tool/patch_flutter_tools_ohos.py`）
 
-flutter-ohos 的 `flutter_tools` 在 ohos debug 构建时不会把
+**补丁 1：native assets manifest（全平台、全构建模式）**
+
+flutter-ohos 的 `flutter_tools` 在 ohos 构建时不会把
 `NativeAssetsManifest.json` 打进 flutter_assets（android/macos 均会），导致
-debug 包运行时报 `No asset with id ... found. No available native assets.`
+运行时报 `No asset with id ... found. No available native assets.`
 （如斗鱼房间加载时 dart_quickjs 找不到 `JS_NewRuntime`）。
 
-修复脚本已对本地 SDK（默认 `D:\flutter_flutter`）执行过；**升级/切换 flutter-ohos
+**补丁 2：Windows 下 ohpm spawn（仅 Windows 构建机生效）**
+
+flutter_tools 的 `ohpmInstall` 直接 spawn 裸 `['ohpm', 'install', '--all']`，
+Windows 上 ohpm 只有 `ohpm.bat`（CreateProcess 不认无扩展名脚本），必报
+"系统找不到指定的文件"。补丁改为优先调用项目内修复版垫片
+`ohos/build-tools/ohpm/bin/ohpm.bat`（见下文 6），不存在时回退
+`cmd /c ohpm.bat`。
+
+修复脚本对本地 SDK（默认 `D:\flutter_flutter`）执行；**升级/切换 flutter-ohos
 SDK 分支后需要重新执行一次**：
 
 ```bash
@@ -106,6 +116,10 @@ python tool/patch_flutter_tools_ohos.py          # 或显式传入 SDK 路径
 ```
 
 脚本幂等，会自动清理工具快照缓存触发重建。
+
+**SDK 克隆注意事项**：克隆 flutter_flutter 时不要用 `--depth 1` ——
+flutter_tools 靠 git tag 解析 SDK 版本，浅克隆拿不到 tag 时版本会变成
+`0.0.0-unknown`，`pub get` 直接版本求解失败（CI 曾因此全平台失败）。
 
 
 ### 6. Windows 构建垫片（`ohos/hvigorw.bat` + `ohos/tool-shims/`）
@@ -118,10 +132,33 @@ DevEco 的 `ohpm.bat` 存在批处理无限递归 bug（`%VAR%` 在代码块内�
   目录镜像到 `ohos/build-tools/hvigor`（gitignore，一次性 robocopy），并把我们
   修复的 ohpm 垫片放到 `ohos/build-tools/ohpm/bin/ohpm.bat` —— hvigorw.js 会以
   `<hvigor>/../../ohpm/bin/ohpm.bat` 解析 ohpm，正好命中垫片；
-- `ohos/tool-shims/ohpm.bat`：直接委托 `node pm-cli.js`，绕过有 bug 的参数剥离逻辑。
+- `ohos/tool-shims/ohpm.bat`：直接委托 `node pm-cli.js`，绕过有 bug 的参数剥离逻辑；
+- flutter_tools 自身 spawn 裸 `ohpm` 的问题由 5.1 的补丁 2 处理。
+
+**Windows 本地构建还要求 SDK、pub 缓存与项目在同一盘符**：flutter_tools 用
+`path.relative` 计算插件模块的 `srcPath`，跨盘符（如 pub 缓存在 `C:`、项目在
+`D:`）会退化成绝对路径，hvigor 报
+`AdaptorError 00303231 The srcPath is not a relative path`。设置
+`PUB_CACHE=D:\pub-cache`（与项目同盘）即可。克隆 flutter_flutter 时也不要用
+`--depth 1`（见 5.1 末尾）。
 
 ### 7. 未适配 / 已知差异
 
+- **window_manager_plus ohos 实现能力缺口**（`lib/app/app_window.dart` 已统一兜底）：
+  - setAlignment / setSize / setPosition / setAlwaysOnTop / setTitle 等未实现，
+    调用抛 `MissingPluginException`；setMinimumSize / setTitle / focus 等
+    已实现但**从不回包**，`await` 会永久挂起；
+  - 这些方法若出现在启动链路（`main` 的 `initWindow`）中，`runApp` 之前就会
+    抛异常或卡死，**表现为鸿蒙 PC 打开即白屏**（手机端不走窗口链路，不受影响）。
+    `AppWindow` 已对鸿蒙端全部窗口调用做 catch + 2s 超时兜底，且启动时不再传
+    center / minimumSize / title；
+  - 由此在鸿蒙 PC 上**降级为 no-op** 的能力：悬浮小窗改窗口尺寸/置顶、
+    自定义窗口标题、窗口最小尺寸限制（全屏切换 `setFullScreen`、窗口拖动
+    `DragToMoveArea` 正常）。
+- **CI 产物 ABI**：`flutter build hap` 默认仅打 `ohos-arm64`。鸿蒙 PC 真机
+  （Kirin，arm64）可用；DevEco 的 **PC 模拟器为 x86_64**，安装 arm64 包无法
+  运行（如需模拟器包需 `--target-platform ohos-x64`，CPF 引擎 x64 release
+  产物可用性待验证）。
 - `floating`（Android PiP 小窗）无鸿蒙适配：floating 包仅支持 Android，CPF 生态也
   暂无 PiP 类适配插件，鸿蒙手机端的"小窗播放"入口暂隐藏。如需实现需自研
   `@ohos.PiPWindow` 的 ohos 插件并对接 media_kit 的渲染管线（详见 issue 记录）。

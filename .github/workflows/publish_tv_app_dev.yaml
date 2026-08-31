@@ -17,24 +17,26 @@ jobs:
         permissions:
             contents: write
         steps:
-            #签出代码
+            #签出代码（构建触发源：tag 或分支，不再写死 dev 分支）
             - uses: actions/checkout@v6
-              with:
-                  ref: dev
 
-            #APK签名设置
-            - name: Download Android keystore
-              id: android_tv_keystore
-              uses: timheuer/base64-to-file@v2
-              with:
-                  fileName: keystore.jks
-                  encodedString: ${{ secrets.TV_KEYSTORE_BASE64 }}
-            - name: Create key.properties
+            #APK签名：fork 无签名 secrets 时生成临时 keystore（非官方签名）
+            - name: Prepare Android signing
+              working-directory: simple_live_tv_app/android
               run: |
-                  echo "storeFile=${{ steps.android_tv_keystore.outputs.filePath }}" > simple_live_tv_app/android/key.properties
-                  echo "storePassword=${{ secrets.TV_STORE_PASSWORD }}" >> simple_live_tv_app/android/key.properties
-                  echo "keyPassword=${{ secrets.TV_KEY_PASSWORD }}" >> simple_live_tv_app/android/key.properties
-                  echo "keyAlias=${{ secrets.TV_KEY_ALIAS }}" >> simple_live_tv_app/android/key.properties
+                  if [ -n "${{ secrets.TV_KEYSTORE_BASE64 }}" ]; then
+                    echo "${{ secrets.TV_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+                    printf 'storeFile=%s\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' \
+                      "$PWD/keystore.jks" "${{ secrets.TV_STORE_PASSWORD }}" \
+                      "${{ secrets.TV_KEY_PASSWORD }}" "${{ secrets.TV_KEY_ALIAS }}" > key.properties
+                  else
+                    keytool -genkeypair -v -keystore keystore.jks -storepass simplelive \
+                      -keypass simplelive -alias simplelive -keyalg RSA -keysize 2048 \
+                      -validity 10000 -dname "CN=Simple Live CI, OU=CI, O=Simple Live, C=CN"
+                    printf 'storeFile=%s\nstorePassword=simplelive\nkeyPassword=simplelive\nkeyAlias=simplelive\n' \
+                      "$PWD/keystore.jks" > key.properties
+                  fi
+              shell: bash
 
             # 设置JAVA环境
             - uses: actions/setup-java@v6

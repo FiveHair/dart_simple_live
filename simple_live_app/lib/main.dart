@@ -110,16 +110,21 @@ Future initWindow() async {
   if (!AppPlatform.supportWindowManager) {
     return;
   }
-  await AppWindow.ensureInitialized();
-  await AppWindow.waitUntilReadyToShow(
-    minimumSize: const Size(280, 280),
-    center: true,
-    title: "Simple Live",
-    callback: () async {
-      await AppWindow.show();
-      await AppWindow.focus();
-    },
-  );
+  try {
+    await AppWindow.ensureInitialized();
+    await AppWindow.waitUntilReadyToShow(
+      minimumSize: const Size(280, 280),
+      center: true,
+      title: "Simple Live",
+      callback: () async {
+        await AppWindow.show();
+        await AppWindow.focus();
+      },
+    );
+  } catch (e) {
+    // 窗口初始化失败不允许阻塞 runApp（否则桌面 / 鸿蒙 PC 端启动白屏）
+    Log.logPrint(e);
+  }
 }
 
 Future initServices() async {

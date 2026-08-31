@@ -46,9 +46,16 @@ jobs:
         shell: bash
 
       # pub 拉取 git 依赖时跳过 LFS smudge（permission_handler 仓库 example 下
-      # 有服务端缺失的 LFS 文件会直接失败），随后再按仓库补拉真实文件
+      # 有服务端缺失的 LFS 文件会直接失败），随后再按仓库补拉真实文件；
+      # gitcode 网络偶发中断，重试三次，全部失败时显式报错退出
       - name: Get Flutter dependencies
-        run: git config --global core.longpaths true && GIT_LFS_SKIP_SMUDGE=1 flutter pub get
+        run: |
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 flutter pub get && exit 0
+            echo "pub get failed, retry ($i/3)..."; sleep 20
+          done
+          echo "ERROR: flutter pub get failed after 3 attempts" >&2
+          exit 1
         working-directory: simple_live_app
         shell: bash
 
@@ -56,12 +63,26 @@ jobs:
       # 是 133 字节指针文件，安装后白屏
       - name: Restore git LFS objects (libmpv)
         run: |
-          d=$(ls -d "$HOME/.pub-cache/git/fluttertpc_flutter_media_kit-"* | head -1)
-          cd "$d" && git lfs pull
+          set -e
+          found=0
+          for d in "$HOME"/.pub-cache/git/fluttertpc_flutter_media_kit-*; do
+            [ -d "$d" ] || continue
+            found=1
+            echo "git lfs pull: $d"
+            (cd "$d" && git lfs pull)
+          done
+          if [ "$found" = 0 ]; then
+            echo "ERROR: no fluttertpc_flutter_media_kit checkout in pub-cache (pub get failed?)" >&2
+            exit 1
+          fi
         shell: bash
 
-      # ohos debug 构建缺少 NativeAssetsManifest.json 的工具链补丁（详见 README_OHOS.md）
-      - name: Patch flutter_tools (ohos native assets manifest)
+      # flutter_tools 双补丁（详见 README_OHOS.md）：
+      # 1. ohos 构建把 NativeAssetsManifest.json 打进 flutter_assets
+      #    （缺它运行时报 "No asset with id ... found"，如 dart_quickjs）
+      # 2. Windows 下 flutter_tools 直接 spawn 裸 'ohpm' 必败（无 ohpm.exe），
+      #    改为优先调用项目内垫片 ohos/build-tools/ohpm/bin/ohpm.bat
+      - name: Patch flutter_tools (ohos)
         run: python3 tool/patch_flutter_tools_ohos.py "$GITHUB_WORKSPACE/flutter"
         working-directory: simple_live_app
         shell: bash
