@@ -46,12 +46,15 @@ Widget buildFullControls(
 ) {
   var padding = MediaQuery.of(videoState.context).padding;
   // 全屏（隐藏系统栏）后 padding 会归零，折叠屏外屏等设备的物理圆角/挖孔
-  // 可能裁掉贴边控件，这里保证一个最小安全边距
+  // 可能裁掉贴边控件，这里保证一个最小安全边距。
+  // 鸿蒙大圆角设备（Pura X 外屏等）对贴角控件的物理侵入远超 8px，
+  // 底栏右侧的全屏按钮/码率按钮会被圆角盖住，使用更大的最小值
+  final isOhosDevice = AppPlatform.isOhos;
   padding = padding.copyWith(
-    top: max(padding.top, 6),
-    bottom: max(padding.bottom, 8),
-    left: max(padding.left, 8),
-    right: max(padding.right, 8),
+    top: max(padding.top, isOhosDevice ? 10.0 : 6.0),
+    bottom: max(padding.bottom, isOhosDevice ? 16.0 : 8.0),
+    left: max(padding.left, isOhosDevice ? 28.0 : 8.0),
+    right: max(padding.right, isOhosDevice ? 28.0 : 8.0),
   );
   GlobalKey volumeButtonkey = GlobalKey();
   return AppDragToMoveArea(

@@ -51,6 +51,10 @@ class WebScoketUtils {
   IOWebSocketChannel? webSocket;
   Timer? heartBeatTimer;
 
+  /// 主动关闭（stop）标记：区分"用户关闭"与"连接失败/断开"，
+  /// 前者不触发重连
+  bool manualClosed = false;
+
   /// 重连次数
   int reconnectTime = 0;
   Timer? reconnectTimer;
@@ -61,6 +65,7 @@ class WebScoketUtils {
   StreamSubscription<dynamic>? streamSubscription;
 
   void connect({bool retry = false}) async {
+    manualClosed = false;
     close();
     try {
       var wsurl = url;
@@ -114,8 +119,16 @@ class WebScoketUtils {
   }
 
   void onError(e, s) {
+    if (manualClosed) {
+      // 主动关闭触发的错误，无需重连
+      return;
+    }
     status = SocketStatus.failed;
     onClose?.call(e.toString());
+    // 连接失败同样走重连（原来只报错就放弃，导致一次失败后永远断连）
+    if (reconnectTimer == null) {
+      reconnect();
+    }
   }
 
   void onDone() {
@@ -133,6 +146,7 @@ class WebScoketUtils {
   }
 
   void close() {
+    manualClosed = true;
     status = SocketStatus.closed;
 
     streamSubscription?.cancel();
@@ -150,7 +164,11 @@ class WebScoketUtils {
     status = SocketStatus.closed;
     if (reconnectTime < maxReconnectTime) {
       reconnectTime++;
-      reconnectTimer ??= Timer.periodic(Duration(seconds: 5), (timer) {
+      // 单次定时器：connect() 内部会调 close() 清掉旧定时器，
+      // 原来的 Timer.periodic 实际只会触发一次；改为每次尝试后重新挂载，
+      // 失败由 onError 再次触发 reconnect，直到达到最大次数
+      reconnectTimer?.cancel();
+      reconnectTimer = Timer(Duration(seconds: 5), () {
         connect();
       });
     } else {

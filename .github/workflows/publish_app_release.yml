@@ -149,11 +149,12 @@ jobs:
         working-directory: simple_live_app
         shell: bash
 
-      # flutter_distributor（pub 全局命令需把 bin 目录加入 PATH）
+      # flutter_distributor（pub 全局命令需把 bin 目录加入 PATH；
+      # 用正斜杠形式——后续 bash 步骤不认反斜杠 PATH 条目，会 exit 127）
       - name: Install flutter_distributor
         run: |
           dart pub global activate flutter_distributor
-          Add-Content $env:GITHUB_PATH "$env:LOCALAPPDATA\Pub\Cache\bin"
+          Add-Content $env:GITHUB_PATH "$(($env:LOCALAPPDATA -replace '\\','/'))/Pub/Cache/bin"
         shell: pwsh
 
       - name: Build Windows

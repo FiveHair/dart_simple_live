@@ -1020,6 +1020,14 @@ ${error?.stackTrace}''');
     if (state == AppLifecycleState.resumed) {
       Log.d("返回前台");
       isBackground = false;
+      // 后台挂起期间，弹幕连接大概率已被系统/服务端单方面断开（半死连接
+      // 未必触发 onDone 走自动重连），回前台直接重建弹幕连接
+      if (liveStatus.value && detail.value != null) {
+        liveDanmaku.stop();
+        liveDanmaku = site.liveSite.getDanmaku();
+        initDanmau();
+        liveDanmaku.start(detail.value?.danmakuData);
+      }
     }
   }
 
