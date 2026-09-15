@@ -153,6 +153,9 @@ jobs:
       - name: Build Windows
         run: |
           cd simple_live_app
+          # GITHUB_PATH 条目在 bash 步骤不可靠，就地把 pub 全局 bin 转成
+          # POSIX 路径加入 PATH（cygpath 处理反斜杠/盘符）
+          export PATH="$(cygpath "$LOCALAPPDATA")/Pub/Cache/bin:$PATH"
           flutter_distributor package --platform windows --targets msix,zip --skip-clean
         shell: bash
 
