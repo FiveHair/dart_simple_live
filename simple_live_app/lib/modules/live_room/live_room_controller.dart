@@ -1020,6 +1020,11 @@ ${error?.stackTrace}''');
     if (state == AppLifecycleState.resumed) {
       Log.d("返回前台");
       isBackground = false;
+      // canvas_danmaku 在 paused 时会暂停渲染（_running=false）但不会在
+      // resumed 时恢复，导致回前台后弹幕不再显示；这里显式恢复
+      if (player.state.playing) {
+        danmakuController?.resume();
+      }
       // 后台挂起期间，弹幕连接大概率已被系统/服务端单方面断开（半死连接
       // 未必触发 onDone 走自动重连），回前台直接重建弹幕连接
       if (liveStatus.value && detail.value != null) {

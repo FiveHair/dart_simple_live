@@ -7,9 +7,6 @@ name: Release (Android / Windows / HarmonyOS)
 # flutter-ohos 是官方 Flutter 的超集 fork，可正常构建其他平台。
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
 
 env:
   FLUTTER_OHOS_VERSION: oh-3.41.9-release

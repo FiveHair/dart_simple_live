@@ -1,9 +1,7 @@
 name: app-build-action
 #推送Tag时触发
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 # 客户端范围：Android + Windows（鸿蒙 HAP 见 build_ohos.yml，TV 见 publish_tv_*）
 # 全部使用 flutter-ohos SDK：鸿蒙适配插件的 Dart 代码使用 Platform.isOhos，

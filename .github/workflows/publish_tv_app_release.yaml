@@ -1,9 +1,7 @@
 name: app-build-action
 #推送Tag时触发
 on:
-  push:
-    tags:
-      - "tv_*"
+  workflow_dispatch:
 
 env:
   JAVA_VERSION: "17"

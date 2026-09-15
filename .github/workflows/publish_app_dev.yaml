@@ -2,9 +2,11 @@ name: app-build-action-dev
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "dev_v*"
+    inputs:
+      skip_android:
+        description: '跳过安卓 APK，仅构建 Windows'
+        type: boolean
+        default: false
 
 # 客户端范围：Android + Windows（鸿蒙 HAP 见 build_ohos.yml，TV 见 publish_tv_*）
 # 全部使用 flutter-ohos SDK：鸿蒙适配插件的 Dart 代码使用 Platform.isOhos，
@@ -19,6 +21,7 @@ env:
 
 jobs:
   build-android:
+    if: ${{ !inputs.skip_android }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
