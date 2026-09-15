@@ -82,7 +82,17 @@ export default class MethodCallPlugin implements FlutterPlugin, AbilityAware {
       lastWindow.setSpecificSystemBarEnabled("status", false, true);
       lastWindow.setSpecificSystemBarEnabled("navigationIndicator", false, true);
       if (needSet) {
-        lastWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE);
+        // 官方推荐视频全屏用 USER_ROTATION_LANDSCAPE：临时旋转到横屏后
+        // 跟随传感器，且"可旋转方向受系统判定"（窗口旋转最佳实践）。
+        // 方形外屏（宽高比接近 1:1，如 Pura X 外屏）不存在"横屏"，
+        // 强制横屏族（AUTO_ROTATION_LANDSCAPE）会令系统对方形窗口强行
+        // 旋转，表现为 UI 整体偏移、右缘控件被裁——保持系统判定即可。
+        const d = display.getDefaultDisplaySync();
+        const ratio = d.width / d.height;
+        const squareLike = ratio > 0.9 && ratio < 1.1;
+        lastWindow.setPreferredOrientation(squareLike
+          ? window.Orientation.AUTO_ROTATION_UNSPECIFIED
+          : window.Orientation.USER_ROTATION_LANDSCAPE);
       } else {
         lastWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_UNSPECIFIED);
       }
@@ -104,7 +114,13 @@ export default class MethodCallPlugin implements FlutterPlugin, AbilityAware {
       lastWindow.setSpecificSystemBarEnabled("status", true, true);
       lastWindow.setSpecificSystemBarEnabled("navigationIndicator", true, true);
       if (this.deviceType == "phone" && display.getFoldDisplayMode() != 1) {
-        lastWindow.setPreferredOrientation(window.Orientation.USER_ROTATION_PORTRAIT);
+        // 方形外屏上"竖屏"同样无意义，避免不必要的旋转
+        const d = display.getDefaultDisplaySync();
+        const ratio = d.width / d.height;
+        const squareLike = ratio > 0.9 && ratio < 1.1;
+        lastWindow.setPreferredOrientation(squareLike
+          ? window.Orientation.AUTO_ROTATION_UNSPECIFIED
+          : window.Orientation.USER_ROTATION_PORTRAIT);
       } else {
         lastWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_UNSPECIFIED);
       }

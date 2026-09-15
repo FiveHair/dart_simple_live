@@ -211,9 +211,17 @@ DevEco 的 `ohpm.bat` 存在批处理无限递归 bug（`%VAR%` 在代码块内�
 - **播控中心（AVSession）**：`MethodCall.ets` 通过 `@kit.AVSessionKit` 创建
   AVSession，上报直播间标题/主播名与播放状态；系统播控的播放/暂停/停止命令
   回传控制播放器。接线在 `LiveRoomController.initOhosAVSession`。
-- **Pura X 外屏等异形屏**：全屏（隐藏系统栏后 MediaQuery padding 归零）时贴边
-  控件可能被物理圆角/挖孔裁切，`buildFullControls` 的安全边距增加了最小值下限
-  （上 6 / 下 8 / 左右 8）。
+- **Pura X 方形外屏（无挖孔）**：
+  - 全屏曾表现为 UI 整体偏右、底栏右缘控件被屏幕裁掉——根因是全屏时
+    `setPreferredOrientation(AUTO_ROTATION_LANDSCAPE)` 在正方形屏（宽高比
+    ≈1:1，不存在"横屏"）上强制横屏族，系统对方形窗口强行旋转导致布局偏移。
+    现改为：方形屏（宽高比 0.9~1.1）不锁方向（`AUTO_ROTATION_UNSPECIFIED`，
+    可旋转方向由系统判定），普通手机按官方窗口旋转最佳实践用
+    `USER_ROTATION_LANDSCAPE`（视频类应用进全屏的推荐策略）；
+  - `avoid_cutout` 设为 false：全屏视频应用内容应铺满挖孔区（有挖孔的设备
+    上 true 会导致系统平移窗口内容避让；方形外屏无挖孔不受影响）；
+  - `buildFullControls` 保留鸿蒙端最小安全边距（上 10 / 下 16 / 左右 28），
+  防大圆角设备贴角控件被物理圆角裁切。
 - **小窗（PiP）**：仍未实现。floating 无鸿蒙适配；系统级 PiPWindow 需要将
   media_kit 的视频渲染切换到 PiP 窗口的 XComponent surface（涉及 media_kit
   ohos 深度改造），建议作为独立需求排期。

@@ -14,8 +14,8 @@
     "pages": "$profile:main_pages",
     "metadata": [
       {
-        // false：内容铺满挖孔区。true 时系统会为避让挖孔整体平移窗口内容，
-        // Pura X 外屏横屏全屏表现为 UI 整体偏右；全屏视频应用应铺满屏幕
+        // false：全屏视频应用内容应铺满挖孔区（有挖孔的设备上 true 会导致
+        // 系统平移窗口内容避让挖孔）；方形外屏无挖孔，此配置不生效
         "name": "avoid_cutout",
         "value": "false",
       }
