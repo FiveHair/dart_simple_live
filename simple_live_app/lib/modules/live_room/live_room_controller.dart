@@ -444,6 +444,48 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     await player.jump(currentLineIndex);
   }
 
+  /// 断流重连前重新获取播放地址
+  ///
+  /// 直播流地址（斗鱼等）的签名有时效，断流后用旧地址重连必然失败，
+  /// 会在烧完重试次数后被误判为"未开播"；这里重新签名换取新地址
+  Future<bool> refreshPlayUrlsForRetry() async {
+    try {
+      var newDetail = await site.liveSite.getRoomDetail(roomId: rxRoomId.value);
+      detail.value = newDetail;
+      liveStatus.value = newDetail.status;
+      if (!newDetail.status) {
+        return false;
+      }
+      var playQualites = await site.liveSite.getPlayQualites(detail: newDetail);
+      if (playQualites.isEmpty) {
+        liveStatus.value = false;
+        return false;
+      }
+      qualites.value = playQualites;
+      // 优先保持原画质，已下架则使用最高画质
+      var idx =
+          playQualites.indexWhere((e) => e.quality == currentQualityInfo.value);
+      if (idx < 0) idx = 0;
+      currentQuality = idx;
+      currentQualityInfo.value = playQualites[idx].quality;
+      var playUrl = await site.liveSite
+          .getPlayUrls(detail: newDetail, quality: playQualites[idx]);
+      if (playUrl.urls.isEmpty) {
+        return false;
+      }
+      playUrls.value = playUrl.urls;
+      playHeaders = playUrl.headers;
+      if (currentLineIndex >= playUrl.urls.length) {
+        currentLineIndex = 0;
+      }
+      currentLineInfo.value = "线路${currentLineIndex + 1}";
+      return true;
+    } catch (e) {
+      Log.logPrint(e);
+      return false;
+    }
+  }
+
   @override
   void mediaEnd() async {
     super.mediaEnd();
@@ -454,9 +496,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         await Future.delayed(const Duration(seconds: 1));
       }
       mediaErrorRetryCount += 1;
-      //刷新一次
-      setPlayer();
-      return;
+      //重新获取流地址后再重连，避免用已失效的旧地址反复尝试
+      if (await refreshPlayUrlsForRetry()) {
+        setPlayer();
+        return;
+      }
     }
 
     Log.d("播放结束");
@@ -481,9 +525,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         await Future.delayed(const Duration(seconds: 1));
       }
       mediaErrorRetryCount += 1;
-      //刷新一次
-      setPlayer();
-      return;
+      //重新获取流地址后再重连，避免用已失效的旧地址反复尝试
+      if (await refreshPlayUrlsForRetry()) {
+        setPlayer();
+        return;
+      }
     }
 
     if (playUrls.length - 1 == currentLineIndex) {

@@ -51,6 +51,15 @@ mixin PlayerMixin {
         );
       }
     }
+    // HTTP 流自动重连（直播流会被 CDN/网络偶发中断）
+    try {
+      await (player.platform as dynamic).setProperty(
+        'stream-lavf-o',
+        'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5',
+      );
+    } catch (e) {
+      Log.logPrint(e);
+    }
     // media_kit 仓库更新导致的问题，临时解决办法
     if (Platform.isAndroid) {
       await pp.setProperty('force-seekable', 'yes');
