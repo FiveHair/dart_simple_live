@@ -34,7 +34,11 @@ jobs:
       # 浅克隆拿不到 tag → 版本变 0.0.0-unknown → pub get 直接失败
       - name: Setup flutter-ohos
         run: |
-          git clone -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          for i in 1 2 3; do
+          git clone -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter" && break
+            echo "clone failed, retrying ($i)..."; sleep 15
+            rm -rf "$RUNNER_TEMP/flutter"
+          done
           echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
@@ -102,7 +106,14 @@ jobs:
       - name: Setup flutter-ohos
         run: |
           git config --global core.longpaths true
+          foreach ($i in 1..3) {
           git clone -b $env:FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$env:RUNNER_TEMP\flutter"
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "clone failed, retrying ($i)..."
+            Start-Sleep -Seconds 15
+            $fd="$env:RUNNER_TEMP\flutter"
+            if (Test-Path $fd) { Remove-Item -Recurse -Force $fd }
+          }
           Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\flutter\bin"
         shell: pwsh
 
@@ -168,7 +179,11 @@ jobs:
 
       - name: Setup flutter-ohos
         run: |
-          git clone -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          for i in 1 2 3; do
+          git clone -b $FLUTTER_OHOS_VERSION https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter" && break
+            echo "clone failed, retrying ($i)..."; sleep 15
+            rm -rf "$RUNNER_TEMP/flutter"
+          done
           echo "$RUNNER_TEMP/flutter/bin" >> $GITHUB_PATH
         shell: bash
 
