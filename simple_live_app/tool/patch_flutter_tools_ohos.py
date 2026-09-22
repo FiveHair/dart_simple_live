@@ -65,7 +65,11 @@ NEW_CALL = """    final Depfile assetDepfile = await copyAssets(
       },
     );"""
 
-OLD_OHPM = """  final List<String> installCmd = <String>['ohpm', 'install', '--all'];"""
+# 上游早期写法带 List<String> 标注，2026-09 后简化为 final installCmd
+OLD_OHPM_VARIANTS = [
+    "  final List<String> installCmd = <String>['ohpm', 'install', '--all'];",
+    "  final installCmd = <String>['ohpm', 'install', '--all'];",
+]
 NEW_OHPM = """  // patched: windows has no ohpm.exe, bare 'ohpm' cannot be spawned;
   // prefer the project's fixed shim (ohos/build-tools/ohpm/bin/ohpm.bat)
   List<String> installCmd;
@@ -83,6 +87,24 @@ OLD_HMOS = """    hvigor.updateLocalProperties(project: parent);"""
 NEW_HMOS = """    // patched: tooling regeneration (pub get / non-ohos builds) must not
     // require the Harmony SDK (mirrors android's requireAndroidSdk: false)
     hvigor.updateLocalProperties(project: parent, requireHarmonySdk: false);"""
+
+
+def patch_file_multi(sdk, rel, olds, new, label):
+    path = os.path.join(sdk, rel)
+    if not os.path.isfile(path):
+        print("[ERROR] not found: %s" % path)
+        return False
+    s = io.open(path, encoding="utf-8").read()
+    if new in s:
+        print("[OK] already patched (%s): %s" % (label, path))
+        return True
+    for old in olds:
+        if s.count(old) == 1:
+            io.open(path, "w", encoding="utf-8", newline="").write(s.replace(old, new, 1))
+            print("[OK] patched (%s): %s" % (label, path))
+            return True
+    print("[ERROR] anchor not found or not unique (%s): %s" % (label, path))
+    return False
 
 
 def patch_file(sdk, rel, old, new, label):
@@ -109,7 +131,7 @@ def main():
     s_path = os.path.join(sdk, TARGET)
     if ok1:
         ok1 = patch_file(sdk, TARGET, OLD_CALL, NEW_CALL, "native assets manifest")
-    ok2 = patch_file(sdk, TARGET2, OLD_OHPM, NEW_OHPM, "windows ohpm spawn")
+    ok2 = patch_file_multi(sdk, TARGET2, OLD_OHPM_VARIANTS, NEW_OHPM, "windows ohpm spawn")
     ok3 = patch_file(sdk, TARGET3, OLD_HMOS, NEW_HMOS, "no hmos sdk on pub get")
 
     if not (ok1 and ok2 and ok3):
