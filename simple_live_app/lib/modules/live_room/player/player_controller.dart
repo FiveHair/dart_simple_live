@@ -94,6 +94,10 @@ mixin PlayerStateMixin on PlayerMixin {
   /// 是否进入桌面端小窗
   RxBool smallWindowState = false.obs;
 
+  /// 视频输出代际：递增后 Video 组件重建（重置渲染层），
+  /// 用于断流恢复后消除撕裂/重影等渲染残留
+  final videoGeneration = 0.obs;
+
   /// 是否显示弹幕
   RxBool showDanmakuState = false.obs;
 

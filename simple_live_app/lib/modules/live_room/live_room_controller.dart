@@ -487,6 +487,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         currentLineIndex = 0;
       }
       currentLineInfo.value = "线路${currentLineIndex + 1}";
+      // 重建视频输出，清除恢复前残留的渲染状态（撕裂/重影）
+      globalPlayerKey = GlobalKey();
+      videoGeneration.value++;
       return true;
     } catch (e) {
       Log.logPrint(e);
