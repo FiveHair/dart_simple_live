@@ -119,6 +119,13 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
     followed.value = DBService.instance.getFollowExist("${site.id}_$roomId");
     initOhosAVSession();
+    //播放成功后重置断流重试配额：长时间观看中多次断流，每次都应获得完整重试机会，
+    //否则计数耗尽后任何一次断流都会被误判为直播结束（显示未开播）
+    _playingStateSub = player.stream.playing.listen((playing) {
+      if (playing) {
+        mediaErrorRetryCount = 0;
+      }
+    });
     loadData();
 
     scrollController.addListener(scrollListener);
@@ -515,6 +522,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   int mediaErrorRetryCount = 0;
+  StreamSubscription<bool>? _playingStateSub;
   @override
   void mediaError(String error) async {
     super.mediaEnd();
@@ -1146,6 +1154,7 @@ ${error?.stackTrace}''');
 
   @override
   void onClose() {
+    _playingStateSub?.cancel();
     _avPlayingSub?.cancel();
     if (AppPlatform.isOhos) {
       if (OhosNative.onAVSessionCommand == _handleAVSessionCommand) {
