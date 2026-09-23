@@ -538,35 +538,41 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   /// 触发恢复（重新取流地址重建播放）
   Timer? _stuckWatchdog;
   Duration _watchdogLastPos = Duration.zero;
-  DateTime _watchdogLastProgressAt = DateTime.now();
+  int _stuckTicks = 0;
 
   void startStuckWatchdog() {
     _watchdogLastPos = Duration.zero;
-    _watchdogLastProgressAt = DateTime.now();
-    _stuckWatchdog = Timer.periodic(const Duration(seconds: 10), (_) {
+    _stuckTicks = 0;
+    // 每 5 秒采样：处于缓冲态或 5 秒内前进不足 5 秒都计一次"卡顿 tick"，
+    // 连续 4 次（约 20 秒）即判定停滞——转圈/碎片式蹭进度都会命中；
+    // 进度正常前进且不在缓冲则清零
+    _stuckWatchdog = Timer.periodic(const Duration(seconds: 5), (_) {
       if (isBackground || !liveStatus.value) {
         _watchdogLastPos = player.state.position;
-        _watchdogLastProgressAt = DateTime.now();
+        _stuckTicks = 0;
         return;
       }
       // 用户主动暂停（既没在播也没在缓冲）不判定；
       // 注意挣扎期 playing 可能为 false（缓冲暂停态），不能据此跳过
       if (!player.state.playing && !player.state.buffering) {
         _watchdogLastPos = player.state.position;
-        _watchdogLastProgressAt = DateTime.now();
+        _stuckTicks = 0;
         return;
       }
       var pos = player.state.position;
-      var now = DateTime.now();
-      if (pos - _watchdogLastPos >= const Duration(seconds: 5)) {
-        // 进度正常前进
+      var advancing = pos - _watchdogLastPos >= const Duration(seconds: 5);
+      if (advancing && !player.state.buffering) {
+        // 播放健康
         _watchdogLastPos = pos;
-        _watchdogLastProgressAt = now;
-      } else if (now.difference(_watchdogLastProgressAt).inSeconds >= 60) {
-        // 60 秒内进度前进不足 5 秒（碎片式蹭进度也算停滞）：主动走断流恢复
-        Log.d("播放停滞超过60秒，主动恢复播放");
-        _watchdogLastPos = pos;
-        _watchdogLastProgressAt = now;
+        _stuckTicks = 0;
+        return;
+      }
+      // 更新基准，避免碎片前进跨窗口累计骗过判定
+      _watchdogLastPos = pos;
+      _stuckTicks++;
+      if (_stuckTicks >= 4) {
+        _stuckTicks = 0;
+        Log.d("播放卡顿/停滞约20秒，主动恢复播放");
         mediaError("播放停滞");
       }
     });
