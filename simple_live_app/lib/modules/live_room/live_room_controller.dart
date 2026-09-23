@@ -503,9 +503,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         await Future.delayed(const Duration(seconds: 1));
       }
       mediaErrorRetryCount += 1;
-      //重新获取流地址后再重连，避免用已失效的旧地址反复尝试
+      //重新获取流地址后再重连，避免用已失效的旧地址反复尝试；
+      //必须用 initPlaylist 重建播放列表，player.jump 只会在旧列表的
+      //旧地址之间切换，不会使用新地址
       if (await refreshPlayUrlsForRetry()) {
-        setPlayer();
+        initPlaylist();
         return;
       }
     }
@@ -533,9 +535,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         await Future.delayed(const Duration(seconds: 1));
       }
       mediaErrorRetryCount += 1;
-      //重新获取流地址后再重连，避免用已失效的旧地址反复尝试
+      //重新获取流地址后再重连，避免用已失效的旧地址反复尝试；
+      //必须用 initPlaylist 重建播放列表，player.jump 只会在旧列表的
+      //旧地址之间切换，不会使用新地址
       if (await refreshPlayUrlsForRetry()) {
-        setPlayer();
+        initPlaylist();
         return;
       }
     }
