@@ -51,11 +51,15 @@ mixin PlayerMixin {
         );
       }
     }
-    // HTTP 流自动重连（直播流会被 CDN/网络偶发中断）
+    // 注意：不开启 ffmpeg 的 lavf 自动重连。斗鱼等直播 CDN 会在签名时效
+    // 内断开长连接，ffmpeg reconnect 会无限重连旧地址且不向 mpv 上报，
+    // 掩盖断流信号导致上层恢复链路无法启动（无限转圈）；
+    // 断流直接冒泡到 mediaEnd/mediaError，由 demuxer 缓冲续播衔接 +
+    // 上层重新取地址重建，实现对齐官方播放器的快速恢复
     try {
       await (player.platform as dynamic).setProperty(
         'stream-lavf-o',
-        'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5',
+        'reconnect=0',
       );
     } catch (e) {
       Log.logPrint(e);
