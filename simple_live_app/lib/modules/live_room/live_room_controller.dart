@@ -541,22 +541,28 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     _watchdogLastPos = Duration.zero;
     _watchdogLastProgressAt = DateTime.now();
     _stuckWatchdog = Timer.periodic(const Duration(seconds: 10), (_) {
-      // 暂停/后台/未开播时不检查
-      if (!player.state.playing || isBackground || !liveStatus.value) {
+      if (isBackground || !liveStatus.value) {
+        _watchdogLastPos = player.state.position;
+        _watchdogLastProgressAt = DateTime.now();
+        return;
+      }
+      // 用户主动暂停（既没在播也没在缓冲）不判定；
+      // 注意挣扎期 playing 可能为 false（缓冲暂停态），不能据此跳过
+      if (!player.state.playing && !player.state.buffering) {
         _watchdogLastPos = player.state.position;
         _watchdogLastProgressAt = DateTime.now();
         return;
       }
       var pos = player.state.position;
       var now = DateTime.now();
-      if (pos - _watchdogLastPos >= const Duration(seconds: 3)) {
+      if (pos - _watchdogLastPos >= const Duration(seconds: 5)) {
         // 进度正常前进
         _watchdogLastPos = pos;
         _watchdogLastProgressAt = now;
       } else if (now.difference(_watchdogLastProgressAt).inSeconds >= 60) {
-        // 60 秒内进度前进不足 3 秒：播放停滞，主动走断流恢复
+        // 60 秒内进度前进不足 5 秒（碎片式蹭进度也算停滞）：主动走断流恢复
         Log.d("播放停滞超过60秒，主动恢复播放");
-        _watchdogLastPos = player.state.position;
+        _watchdogLastPos = pos;
         _watchdogLastProgressAt = now;
         mediaError("播放停滞");
       }
