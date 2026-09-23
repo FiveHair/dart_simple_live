@@ -17,6 +17,7 @@ import 'package:simple_live_app/app/ohos_native.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/log.dart';
+import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/app_window.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/listen_fourth_button.dart';
@@ -24,6 +25,7 @@ import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/models/db/history.dart';
 import 'package:simple_live_app/modules/other/debug_log_page.dart';
+import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/app_pages.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/bilibili_account_service.dart';
@@ -63,6 +65,26 @@ void main() async {
   );
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
   runApp(const MyApp());
+
+  // 调试用：设置 AUTO_ROOM 环境变量（格式: 站点id:房间号，如 douyu:71415）
+  // 时，启动后自动进入直播间，用于断流等问题挂机复现。
+  // 仅在显式设置该环境变量时生效，发布环境不受影响
+  if (Platform.environment['AUTO_ROOM'] != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(seconds: 6));
+      var parts = Platform.environment['AUTO_ROOM']!.split(':');
+      if (parts.length == 2) {
+        try {
+          var site = Sites.allSites[parts[0]];
+          if (site != null) {
+            AppNavigator.toLiveRoomDetail(site: site, roomId: parts[1]);
+          }
+        } catch (e) {
+          debugPrint("AUTO_ROOM failed: $e");
+        }
+      }
+    });
+  }
 }
 
 /// 将Hive数据迁移到Application Support

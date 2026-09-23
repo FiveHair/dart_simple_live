@@ -126,6 +126,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         mediaErrorRetryCount = 0;
       }
     });
+    startStuckWatchdog();
     loadData();
 
     scrollController.addListener(scrollListener);
@@ -525,6 +526,43 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
   int mediaErrorRetryCount = 0;
   StreamSubscription<bool>? _playingStateSub;
+
+  /// 播放停滞看门狗
+  ///
+  /// 流地址断开后 ffmpeg 的 lavf reconnect 会无限重连旧地址（转圈-读几帧-
+  /// 再断循环），mpv 永远不触发 error/completed，上层的断流恢复链路因此
+  /// 不会启动（表现：无限转圈）。这里监测播放进度，长时间不前进则主动
+  /// 触发恢复（重新取流地址重建播放）
+  Timer? _stuckWatchdog;
+  Duration _watchdogLastPos = Duration.zero;
+  DateTime _watchdogLastProgressAt = DateTime.now();
+
+  void startStuckWatchdog() {
+    _watchdogLastPos = Duration.zero;
+    _watchdogLastProgressAt = DateTime.now();
+    _stuckWatchdog = Timer.periodic(const Duration(seconds: 10), (_) {
+      // 暂停/后台/未开播时不检查
+      if (!player.state.playing || isBackground || !liveStatus.value) {
+        _watchdogLastPos = player.state.position;
+        _watchdogLastProgressAt = DateTime.now();
+        return;
+      }
+      var pos = player.state.position;
+      var now = DateTime.now();
+      if (pos - _watchdogLastPos >= const Duration(seconds: 3)) {
+        // 进度正常前进
+        _watchdogLastPos = pos;
+        _watchdogLastProgressAt = now;
+      } else if (now.difference(_watchdogLastProgressAt).inSeconds >= 60) {
+        // 60 秒内进度前进不足 3 秒：播放停滞，主动走断流恢复
+        Log.d("播放停滞超过60秒，主动恢复播放");
+        _watchdogLastPos = player.state.position;
+        _watchdogLastProgressAt = now;
+        mediaError("播放停滞");
+      }
+    });
+  }
+
   @override
   void mediaError(String error) async {
     super.mediaEnd();
@@ -1158,6 +1196,7 @@ ${error?.stackTrace}''');
 
   @override
   void onClose() {
+    _stuckWatchdog?.cancel();
     _playingStateSub?.cancel();
     _avPlayingSub?.cancel();
     if (AppPlatform.isOhos) {
